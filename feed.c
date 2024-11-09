@@ -34,7 +34,7 @@ int main(int argc, char* argv[]) {
     n = read(up, cmd, sizeof(cmd) - 1);          
     if (n > 0) {
         cmd[n] = '\0';
-        printf("LI... '%s' (%d bytes)\n", cmd, n);
+        printf("%s\n", cmd);
     }
 
     
