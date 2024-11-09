@@ -16,23 +16,20 @@ int main(int argc, char* argv[]) {
 
     printf("INICIO MANAGER...\n");
 
-    char cmd[TAM], upid[10];  // Buffer para upid maior
+    // VARIAVEIS
+    char cmd[TAM], upid[10];  
     int mp, up, n;
 
     printf("ESPERANDO USERS...\n");
 
-    // Cria o FIFO principal para comunicação
+    // MANAGER PIPE
     mkfifo(FIFO_CS, 0600);
     mp = open(FIFO_CS, O_RDONLY);
+    n = read(mp, upid, sizeof(upid) - 1);         // LÊ O PID DO USER
+    upid[n] = '\0';                               // Null-terminator
+    printf("USER  CHEGOU: %s\n", upid);
 
-    // Lê o PID enviado pelo `feed.c`
-    n = read(mp, upid, sizeof(upid) - 1);
-    upid[n] = '\0';  // Null-terminator
-
-    printf("CHEGOU UM USER...\n");
-
-    // Cria caminho para FIFO exclusivo do `feed.c`
-    printf("Recebi PID: %s\n", upid);
+    //USER PIPE
     up = open(upid, O_WRONLY);
     if (up == -1) {
         perror("Erro ao abrir FIFO do usuário");
@@ -41,16 +38,16 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    // Envia uma mensagem de confirmação
-    strcpy(cmd, "Recebi o teu pid.");
-    write(up, cmd, strlen(cmd) + 1);
+    // MAN->USER
+    strcpy(cmd, "LOGIN COM SUCESSO.");
+    write(up, cmd, strlen(cmd) + 1);              // Envia uma mensagem de confirmação
 
     // Loop de leitura de mensagens do feed.c
     do {
         n = read(mp, cmd, TAM - 1);
         if (n > 0) {
             cmd[n] = '\0';
-            printf("LI... '%s' (%d bytes)\n", cmd, n);
+            printf("MSG: '%s'\n", cmd);
         }
     } while (strncmp(cmd, "quit", 4) != 0);
 
