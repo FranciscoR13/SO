@@ -25,7 +25,7 @@ struct Topico
 {
     char nomeTopico[20];
     char msg_persistentes[5][300];// 5 mensagens com 300 de comprimento
-    int bloqueado; // 0- desbloqueado 1-bloqueado 
+    int bloqueado; // 0- desbloqueado 1-bloqueado | podemos usar bool em vez de int
     struct Msg msgs[5];
 };
 
