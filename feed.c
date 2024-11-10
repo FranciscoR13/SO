@@ -9,6 +9,40 @@
 #define TAM 50
 #define FIFO_CS "M-PIPE"
 
+/*
+#define MAX_TOPICOS 20 //definir a quantidade de topicos que podem existir
+
+
+struct Msg
+{
+    char corpo_msg[300];
+    int duracao; //a msg tem uma duração por isso pus isto aqui pode ser sujeito a alterações
+
+};
+
+
+struct Topico
+{
+    char nomeTopico[20];
+    char msg_persistentes[5][300];// 5 mensagens com 300 de comprimento
+    int bloqueado; // 0- desbloqueado 1-bloqueado 
+    struct Msg msgs[5];
+};
+
+
+// Comando 'topics': mostra todos os tópicos, se não existirem topicos da erro
+void listar_topicos(int num_topicos) {
+    if (num_topicos == 0) {
+        printf("Não existem tópicos cadastrados.\n");
+        return;
+    }
+    
+   //resto do codigo para fazer o comando funcionar
+}
+*/
+
+
+
 int main(int argc, char* argv[]) {
     if (argc != 1) {
         return 1;
