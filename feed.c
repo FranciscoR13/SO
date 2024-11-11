@@ -55,33 +55,43 @@ int main(int argc, char* argv[]) {
     int mp, up, n;
     pid_t pid = getpid();
 
-    //USER-PIPE
-    snprintf(upid, sizeof(upid), "%d", pid);     // Gera o nome do FIFO exclusivo usando o PID
-    mkfifo(upid, 0600);                          // Cria o FIFO exclusivo para leitura de resposta
-    up = open(upid, O_RDONLY);                   // Abre o FIFO exclusivo para receber mensagens do manager.c
+    //FIFO QUE RECEBE MENSAGENS DO MANAGER
+    snprintf(upid, sizeof(upid), "%d", pid); // Gera o nome do FIFO exclusivo usando o PID
+    mkfifo(upid, 0600); // Cria o FIFO exclusivo para leitura de resposta
 
-    // MANAGER-PIPE
+    // Abre o FIFO principal para comunicação com o gerenciador
     mp = open(FIFO_CS, O_WRONLY);
 
-    //ENVIA E RECEBE A RESPOSTA DO MANAGER
-    write(mp, upid, strlen(upid) + 1);           // Envia o PID para o manager.c
-    n = read(up, cmd, sizeof(cmd) - 1);          
+    // Envia o PID para o manager.c
+    write(mp, upid, strlen(upid) + 1);
+
+    // Abre o FIFO exclusivo para receber mensagens do manager.c
+    up = open(upid, O_RDONLY);
+
+    // Lê a resposta de confirmação do manager.c
+    n = read(up, cmd, sizeof(cmd) - 1);
     if (n > 0) {
         cmd[n] = '\0';
-        printf("%s\n", cmd);
+        printf("LI... '%s' (%d bytes)\n", cmd, n);
     }
 
-    
-    // LOOP DE MSG PARA O MANAGERS
+    // Loop de envio de comandos ao manager.c
     do {
-        scanf("%s", cmd);
+        // Lê uma linha inteira (299 char)
+        fgets(cmd, TAM+1, stdin);  
+        // Remove o '\n' 
+        cmd[strcspn(cmd, "\n")] = '\0';
         write(mp, cmd, strlen(cmd) + 1);
     } while (strcmp(cmd, "fim") != 0);
 
-    //FECHAR CENAS 
+    // Fecha e remove o FIFO
     close(mp);
     close(up);
-    unlink(upid);//NAO FUNCIONA FALAR COM O PROF...
+    if (unlink(upid) == -1) {
+        perror("Erro ao remover o FIFO");
+    } else {
+        printf("FIFO '%s' removido com sucesso.\n", upid);
+    }
 
     printf("FIM FEED...\n");
 
