@@ -1,0 +1,48 @@
+TP-SO
+
+FEED:
+-arg. linha cmd user
+-obter/validar cmd user
+-cada cliente tem de ter um pipe para receber as respostas do maneger(usar o pid como nome do pipe)
+
+~$./feed joao
+	argv[1]
+
+->Name Pipe
+	access();--verifica se o namePipe existe,ou verificar se open falha
+	open(w);
+	do{
+		...
+		(cmd)
+		...
+		write(); -- tem de ir a informação de quem, está a enviar(pedido--LOGIN)
+		...
+	}while(...);
+	close();
+
+	escreve.c (codigo aulas)
+
+MANAGER:
+-obter var ambiente
+-obter/validar cmd admin
+-o manager so precisa de um pipe para receber os cmd dos users
+
+~$./manager
+
+->Name Pipes
+	mkfifo(); cria
+	open(R);
+	read(tubo);
+	…
+	close(tubo)
+	unlink(); remove--quem cria remove
+
+	le.c (codigo aulas)
+
+CMD:
+mkfifo tubo
+ls -l
+namePipe ... 0 ... tubo
+...
+rm tubo
+unlink tubo
