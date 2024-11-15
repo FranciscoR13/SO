@@ -4,6 +4,7 @@ FEED:
 -arg. linha cmd user
 -obter/validar cmd user
 -cada cliente tem de ter um pipe para receber as respostas do maneger(usar o pid como nome do pipe)
+-so abre dois canais logo abrir uma vez e fechar no final
 
 ~$./feed joao
 	argv[1]
@@ -26,6 +27,12 @@ MANAGER:
 -obter var ambiente
 -obter/validar cmd admin
 -o manager so precisa de um pipe para receber os cmd dos users
+-abrir com (w/r) -> para o servidor escrever para ele próprio para poupar recurso para não ficar sem clientes
+-usar access para garantir que existe apenas um servidor
+-empacotar mensagens, delimitar as mensagens
+-associar o pid ao clienete -> estrutura de dados
+-codificar os comandos com numeros
+-no ciclo abrir->escrever->fechar quando comunica com os user != do que acontece no feed
 
 ~$./manager
 
