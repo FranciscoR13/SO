@@ -1,8 +1,8 @@
-/*
-Como usar:
-make: compilas tudo
-make clean: removes tudo
-*/
+
+# Como usar:
+# make: compilas tudo
+# make clean: removes tudo
+
 
 
 # Definir variaveis
