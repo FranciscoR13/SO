@@ -1,35 +1,4 @@
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-
-#define TAM 50
-#define FIFO_CS "M-PIPE"
-
-/*
-#define MAX_UTILIZADORES 10 //definir a quantidade de utilizadores que podem existir
-
-
-struct Msg
-{
-    char corpo_msg[300];
-    int duracao; //a msg tem uma duração por isso pus isto aqui pode ser sujeito a alterações
-
-};
-
-
-struct Topico
-{
-    char nomeTopico[20];
-    char msg_persistentes[5][300];// 5 mensagens com 300 de comprimento
-    int bloqueado; // 0- desbloqueado 1-bloqueado 
-    struct Msg msgs[5];
-};
-
-*/
+#include "includes.h"
 
 
 int main(int argc, char* argv[]) {
