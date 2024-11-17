@@ -6,50 +6,50 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    printf("INICIO MANAGER...\n");
+    // VARIAVEIS
+    char fifo_feed[20];
+    int man_pipe, feed_pipe, tam;
+    RESPOSTA r;
+    MENSAGEM m;
 
-    char cmd[TAM], upid[10];  // Buffer para upid maior
-    int mp, up, n;
+    //EXISTE SERVIDOR ON?(SO PODE EXISTIR UM)
+    if(access(FIFO_SERV,F_OK)==0) {
+        printf("[ERRO]-SERVER ON\n");
+        exit(3);
+    }
+
+    printf("INICIO MANAGER...\n");
 
     printf("ESPERANDO USERS...\n");
 
     // Cria o FIFO principal para comunicação
-    mkfifo(FIFO_CS, 0600);
-    mp = open(FIFO_CS, O_RDONLY);
+    mkfifo(FIFO_SERV, 0600);
+    man_pipe = open(FIFO_SERV, O_RDONLY);
 
-    // Lê o PID enviado pelo `feed.c`
-    n = read(mp, upid, sizeof(upid) - 1);
-    upid[n] = '\0';  // Null-terminator
-
-    printf("CHEGOU UM USER...\n");
-
-    // Cria caminho para FIFO exclusivo do `feed.c`
-    printf("Recebi PID: %s\n", upid);
-    up = open(upid, O_WRONLY);
-    if (up == -1) {
-        perror("Erro ao abrir FIFO do usuário");
-        close(mp);
-        unlink(FIFO_CS);
-        return 1;
-    }
-
-    // Envia uma mensagem de confirmação
-    strcpy(cmd, "Recebi o teu pid.");
-    write(up, cmd, strlen(cmd) + 1);
-
-    // Loop de leitura de mensagens do feed.c
     do {
-        n = read(mp, cmd, TAM - 1);
-        if (n > 0) {
-            cmd[n] = '\0';
-            printf("MSG: '%s' (%d bytes)\n", cmd, n);
+        tam = read(man_pipe, &m, sizeof(MENSAGEM));
+        if (tam == sizeof(MENSAGEM)) {
+            printf("\nMENSAGEM DE [%d] | TOPICO[%s] | MSG[%s]\n", m.pid, m.topic, m.str);
+
+            // Construir o FIFO e enviar resposta
+            sprintf(fifo_feed, FIFO_CLI, m.pid);
+            feed_pipe = open(fifo_feed, O_WRONLY);
+
+            strcpy(r.str, "OK");
+            tam = write(feed_pipe, &r, sizeof(RESPOSTA));
+            printf("ENVIEI... '%s'\n", r.str);
+            close(feed_pipe);
         }
-    } while (strncmp(cmd, "quit", 4) != 0);
+        else{
+            break;
+        }
+
+    } while (strcmp(m.topic, "quit") != 0);
+
 
     // Fecha e remove o FIFO
-    close(mp);
-    close(up);
-    unlink(FIFO_CS);
+    close(man_pipe);
+    unlink(FIFO_SERV);
 
     printf("FIM MANAGER...\n");
 
