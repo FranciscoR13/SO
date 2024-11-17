@@ -6,7 +6,8 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#define TAM 50
+#define TOPICO 50
+#define MSG 300
 #define FIFO_CS "M-PIPE"
 
 
@@ -15,7 +16,8 @@
 
 typedef struct 
 {
-    char corpo_msg[300];
+    char topicO[TOPICO];//para sabermos a que topico pertence
+    char corpo_msg[MSG];
     int duracao; //a msg tem uma duração por isso pus isto aqui pode ser sujeito a alterações
 
 }Msg;
