@@ -15,54 +15,70 @@ void listar_topicos(int num_topicos) {
 
 
 int main(int argc, char* argv[]) {
-    if (argc != 1) {
+    if (argc != 2) {
         return 1;
     }
 
-    printf("INICIO FEED...\n");
-
     //VARIAVEIS
-    char cmd[TAM], upid[20];
-    int mp, up, n;
+    char msg[MSG], topic[TOPIC], fifo_feed[20];
+    int man_pipe, feed_pipe, tam;
     pid_t pid = getpid();
+    MENSAGEM m;
+    RESPOSTA r;
+
+    //se nao existir da erro
+    if(access(FIFO_SERV,F_OK)!=0) {
+        printf("[ERRO]-SERVER OFF\n");
+        exit(3);
+    }
+
+    printf("INICIO FEED...\n");
+    printf("PID: %d\n", pid);
 
     //FIFO QUE RECEBE MENSAGENS DO MANAGER
-    snprintf(upid, sizeof(upid), "%d", pid); // Gera o nome do FIFO exclusivo usando o PID
-    mkfifo(upid, 0600); // Cria o FIFO exclusivo para leitura de resposta
+    sprintf(fifo_feed, FIFO_CLI, pid);
+    mkfifo(fifo_feed, 0600);
+    feed_pipe = open(fifo_feed, O_RDWR);
+    man_pipe = open(FIFO_SERV, O_WRONLY);
 
-    // Abre o FIFO principal para comunicação com o gerenciador
-    mp = open(FIFO_CS, O_WRONLY);
-
-    // Envia o PID para o manager.c
-    write(mp, upid, strlen(upid) + 1);
-
-    // Abre o FIFO exclusivo para receber mensagens do manager.c
-    up = open(upid, O_RDONLY);
-
-    // Lê a resposta de confirmação do manager.c
-    n = read(up, cmd, sizeof(cmd) - 1);
-    if (n > 0) {
-        cmd[n] = '\0';
-        printf("LI... '%s' (%d bytes)\n", cmd, n);
-    }
-
-    // Loop de envio de comandos ao manager.c
     do {
-        // Lê uma linha inteira (299 char)
-        fgets(cmd, TAM+1, stdin);  
-        // Remove o '\n' 
-        cmd[strcspn(cmd, "\n")] = '\0';
-        write(mp, cmd, strlen(cmd) + 1);
-    } while (strcmp(cmd, "fim") != 0);
+        //TOPICO?
+        printf("\nTOPICO: ");
+        fflush(stdout);
+        fgets(topic, TOPIC, stdin);
+        topic[strcspn(topic, "\n")] = '\0';
 
-    // Fecha e remove o FIFO
-    close(mp);
-    close(up);
-    if (unlink(upid) == -1) {
-        perror("Erro ao remover o FIFO");
-    } else {
-        printf("FIFO '%s' removido com sucesso.\n", upid);
-    }
+        if(strcmp(topic,"quit")==0){break;}
+
+        //MENSAGEM?
+        printf("MENSAGEM: ");
+        fflush(stdout);
+        fgets(msg, MSG, stdin);
+        msg[strcspn(msg, "\n")] = '\0';
+
+        //ESTRUTURA MENSAGEM
+        m.pid = pid;
+        strcpy(m.topic,topic);
+        strcpy(m.str,msg);
+
+        tam = write(man_pipe, &m, sizeof(MENSAGEM));
+
+        if (tam == sizeof(MENSAGEM)) {
+            printf("\nTPICO[%s] | MSG[%s]\n", m.topic, m.str);
+
+            tam = read(feed_pipe, &r, sizeof(RESPOSTA));
+
+            if (tam == sizeof(RESPOSTA)) {
+                printf("SERVER RESPONDE: '%s'\n", r.str);
+            }
+        }
+
+    } while (strcmp(m.topic, "quit") != 0);
+
+    close(feed_pipe);
+    close(man_pipe);
+    unlink(fifo_feed);
+
 
     printf("FIM FEED...\n");
 
