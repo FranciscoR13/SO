@@ -6,13 +6,30 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#define TOPICO 50
+//TAM MAX DE...
+#define NOME 20
+#define TOPIC 20
 #define MSG 300
-#define FIFO_CS "M-PIPE"
+#define TAM 20
 
+// MAX Nº DE...
+#define MAX_USERS 10
+#define MAX_TOPICS 20
+#define MAX_MSG_PER 5
 
-#define MAX_TOPICOS 20 //definir a quantidade de topicos que podem existir
+// FIFOS
+#define FIFO_SERV "M_PIPE"  //MANAGER-PIPE
+#define FIFO_CLI "F_%d"     //FEED-PIPE(PID)
 
+typedef struct {
+    int pid;
+    char username[NOME];
+}LOGIN;
+
+typedef struct {
+    char str[MSG];
+    //...
+}RESPOSTA;
 
 typedef struct 
 {
