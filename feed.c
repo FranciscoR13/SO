@@ -10,11 +10,8 @@ void listar_topicos(int num_topicos) {
     
    //resto do codigo para fazer o comando funcionar
 }
-*/
 
 
-
-#include "includes.h"
 
 // FUNCAO DE LOGIN QUE ENVIA O USERNAME E O PID
 bool login(int man_pipe, int feed_pipe, char* username, int pid) {
@@ -124,6 +121,3 @@ int main(int argc, char* argv[]) {
     return 0;
 }
 
-
-    return 0;
-}
