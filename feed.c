@@ -34,7 +34,7 @@ bool login(int man_pipe, int feed_pipe, char* username, int pid) {
 
     //TENTA RECEBER O LOGIN
     tam = read(feed_pipe, &r, sizeof(RESPOSTA));
-    if (tam < sizeof(RESPOSTA)) {
+    if (strcmp(r.str,"FAIL")==0) {
         return false;  // Se não leu todos os bytes esperados
     }
 
@@ -103,6 +103,11 @@ int main(int argc, char* argv[]) {
             printf("\nTPICO[%s] | MSG[%s]\n", m.topic, m.str);
 
             tam = read(feed_pipe, &r, sizeof(RESPOSTA));
+
+            if (tam == sizeof(RESPOSTA) && strcmp(r.str,"FECHOU")==0) {
+                printf("SERVER FECHOU");
+                break;
+            }
 
             if (tam == sizeof(RESPOSTA)) {
                 printf("SERVER RESPONDE: '%s'\n", r.str);
