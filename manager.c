@@ -1,5 +1,6 @@
 #include "includes.h"
 
+// FAZ O USER FECHAR
 bool fecha_login(const int pid) {
     // VARIAVEIS AUXILIARES
     RESPOSTA r;
@@ -24,8 +25,8 @@ bool fecha_login(const int pid) {
     return false;
 }
 
+// VERIFICA SE O USERNAME/USERPID JA EXISTE NAS TABELAS
 bool verifica_login(const LOGIN *l, const THREAD_LOGIN *tl) {
-    //verificar se o username ja existe
     for (int i = 0; i < tl->nUsers; i++) {
         if (strcmp(tl->users_names[i], l->username) == 0 || tl->users_pids[i] == l->pid) {
             return false;
@@ -34,6 +35,7 @@ bool verifica_login(const LOGIN *l, const THREAD_LOGIN *tl) {
     return true;
 }
 
+// THREAD PARA INTRODUZIR OS USERS QUE CHEGAM
 void *executa_login(void *thread_login) {
     THREAD_LOGIN *tl = (THREAD_LOGIN *) thread_login;
     LOGIN l;
@@ -82,7 +84,7 @@ void *executa_login(void *thread_login) {
     return NULL;
 }
 
-
+// THREAD QUE RECEBE AS MENSAGENS DOS USERS
 void *recebe_msg(void *thread_msg) {
     THREAD_MSG *tm = (THREAD_MSG *) thread_msg;
     MENSAGEM m;
