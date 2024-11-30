@@ -21,6 +21,20 @@
 #define FIFO_SERV "M_PIPE"  //MANAGER-PIPE
 #define FIFO_CLI "F_%d"     //FEED-PIPE(PID)
 
+// Á PARTIDA APENAS USADA NO MANAGER
+typedef struct {
+    int man_pipe;
+    int nUsers;
+    int users_pids[MAX_USERS];
+    char users_names[MAX_USERS][NOME];
+}THREAD_LOGIN;
+
+typedef struct {
+    int *man_pipe;
+    THREAD_LOGIN *thread_login;
+    bool ligado;                //AINDA EM TESTE
+}THREAD_MSG;
+
 typedef struct {
     int pid;
     char username[NOME];
@@ -37,7 +51,7 @@ typedef struct
     char corpo_msg[MSG];
     int duracao; //a msg tem uma duração por isso pus isto aqui pode ser sujeito a alterações
 
-}Msg;
+}Msg; // NO MEU CODIGO TEM O NOME DE MENSAGEM
 
 
 typedef struct 
