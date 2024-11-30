@@ -23,16 +23,16 @@
 
 // Á PARTIDA APENAS USADA NO MANAGER
 typedef struct {
-    int man_pipe;
-    int nUsers;
-    int users_pids[MAX_USERS];
-    char users_names[MAX_USERS][NOME];
+    int man_pipe;                          // PIPE QUE RECEBE OS LOGINS
+    int nUsers;                            // Nº USERS
+    int users_pids[MAX_USERS];             // TABELA COM OS PIDS
+    char users_names[MAX_USERS][NOME];     // TABELA COM OS USERNAMES
 }THREAD_LOGIN;
 
 typedef struct {
-    int *man_pipe;
-    THREAD_LOGIN *thread_login;
-    bool ligado;                //AINDA EM TESTE
+    int *man_pipe;                 // PIPE QUE RECEBE AS MSG (ESTE É * PQ ESTAVA A TESTAR E NAO MUDEI O OUTRO)
+    THREAD_LOGIN *thread_login;    // SERVE PARA TER ACESSO A TABELA DOS USERS (QUERO MUDAR PARA UM PONTEIRO PARA A TABELA))
+    bool ligado;                   //AINDA EM TESTE MAS APENAS PARA FECHAR A THREAD
 }THREAD_MSG;
 
 typedef struct {
