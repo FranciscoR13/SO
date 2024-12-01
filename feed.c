@@ -1,17 +1,14 @@
 #include "includes.h"
 
-
 // Comando 'topics': mostra todos os tópicos, se não existirem topicos da erro
 void listar_topicos(int num_topicos) {
     if (num_topicos == 0) {
         printf("Não existem tópicos cadastrados.\n");
         return;
     }
-    
-   //resto do codigo para fazer o comando funcionar
+
+    //resto do codigo para fazer o comando funcionar
 }
-
-
 
 // FUNCAO DE LOGIN QUE ENVIA O USERNAME E O PID
 bool login(int man_pipe, int feed_pipe, char* username, int pid) {
@@ -47,7 +44,7 @@ int main(int argc, char* argv[]) {
     }
 
     //VARIAVEIS
-    char msg[MSG], topic[TOPIC], fifo_feed[20];
+    char msg[TAM_MSG], topic[TAM_TOPICO], fifo_feed[20];
     int man_pipe, feed_pipe, tam;
     pid_t pid = getpid();
     MENSAGEM m;
@@ -83,24 +80,24 @@ int main(int argc, char* argv[]) {
         //TOPICO?
         printf("\nTOPICO: ");
         fflush(stdout);
-        fgets(topic, TOPIC, stdin);
+        fgets(topic, TAM_TOPICO, stdin);
         topic[strcspn(topic, "\n")] = '\0';
 
         //MENSAGEM?
         printf("MENSAGEM: ");
         fflush(stdout);
-        fgets(msg, MSG, stdin);
+        fgets(msg, TAM_MSG, stdin);
         msg[strcspn(msg, "\n")] = '\0';
 
         //ESTRUTURA MENSAGEM
         m.pid = pid;
-        strcpy(m.topic,topic);
-        strcpy(m.str,msg);
+        strcpy(m.topico,topic);
+        strcpy(m.corpo_msg,msg);
 
         tam = write(man_pipe, &m, sizeof(MENSAGEM));
 
         if (tam == sizeof(MENSAGEM)) {
-            printf("\nTPICO[%s] | MSG[%s]\n", m.topic, m.str);
+            printf("\nTPICO[%s] | MSG[%s]\n", m.topico, m.corpo_msg);
 
             tam = read(feed_pipe, &r, sizeof(RESPOSTA));
 
@@ -114,7 +111,7 @@ int main(int argc, char* argv[]) {
             }
         }
 
-    } while (strcmp(m.topic, "quit") != 0);
+    } while (strcmp(m.topico, "quit") != 0);
 
     // FECHA PIPES & APAGA FIFO
     close(feed_pipe);
@@ -125,4 +122,3 @@ int main(int argc, char* argv[]) {
 
     return 0;
 }
-
