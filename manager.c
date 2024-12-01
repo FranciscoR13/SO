@@ -1,6 +1,5 @@
 #include "includes.h"
 
-// FAZ O USER FECHAR
 bool fecha_login(const int pid) {
     // VARIAVEIS AUXILIARES
     RESPOSTA r;
@@ -25,8 +24,8 @@ bool fecha_login(const int pid) {
     return false;
 }
 
-// VERIFICA SE O USERNAME/USERPID JA EXISTE NAS TABELAS
 bool verifica_login(const LOGIN *l, const THREAD_LOGIN *tl) {
+    //verificar se o username ja existe
     for (int i = 0; i < tl->nUsers; i++) {
         if (strcmp(tl->users_names[i], l->username) == 0 || tl->users_pids[i] == l->pid) {
             return false;
@@ -35,7 +34,6 @@ bool verifica_login(const LOGIN *l, const THREAD_LOGIN *tl) {
     return true;
 }
 
-// THREAD PARA INTRODUZIR OS USERS QUE CHEGAM
 void *executa_login(void *thread_login) {
     THREAD_LOGIN *tl = (THREAD_LOGIN *) thread_login;
     LOGIN l;
@@ -67,7 +65,7 @@ void *executa_login(void *thread_login) {
             strcpy(r.str, "OK");
             if (write(feed_pipe, r.str, sizeof(RESPOSTA)) == sizeof(RESPOSTA)) {
                 // Adiciona o usuário às listas
-                snprintf(tl->users_names[tl->nUsers], NOME, "%s", l.username);
+                snprintf(tl->users_names[tl->nUsers], TAM_NOME, "%s", l.username);
                 tl->users_pids[tl->nUsers] = l.pid;
                 tl->nUsers++;
             }
@@ -84,7 +82,7 @@ void *executa_login(void *thread_login) {
     return NULL;
 }
 
-// THREAD QUE RECEBE AS MENSAGENS DOS USERS
+
 void *recebe_msg(void *thread_msg) {
     THREAD_MSG *tm = (THREAD_MSG *) thread_msg;
     MENSAGEM m;
@@ -97,7 +95,7 @@ void *recebe_msg(void *thread_msg) {
     do {
         tam = read(*tm->man_pipe, &m, sizeof(MENSAGEM));
         if (tam == sizeof(MENSAGEM)) {
-            printf("\n\nMENSAGEM DE [%d] | TOPICO[%s] | MSG[%s]\n", m.pid, m.topic, m.str);
+            printf("\n\nMENSAGEM DE [%d] | TOPICO[%s] | MSG[%s]\n", m.pid, m.topico, m.corpo_msg);
 
             // CONSTROI NOME/ABRE/RESPONDE/FECHA FIFO_CLI
             sprintf(fifo_feed, FIFO_CLI, m.pid);
