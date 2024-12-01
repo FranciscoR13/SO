@@ -1,11 +1,12 @@
 #include <stdio.h>
+#include <stdbool.h>
 #include <string.h>
 #include <stdlib.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <stdbool.h>
+#include <pthread.h>
 
 //TAM MAX DE...
 #define NOME 20
@@ -48,7 +49,8 @@ typedef struct {
 
 typedef struct 
 {
-    char topicO[TOPICO];//para sabermos a que topico pertence
+    int pid;
+    char topico[TOPICO];//para sabermos a que topico pertence
     char corpo_msg[MSG];
     int duracao; //a msg tem uma duração por isso pus isto aqui pode ser sujeito a alterações
 
@@ -57,8 +59,9 @@ typedef struct
 
 typedef struct 
 {
-    char nomeTopico[20];
-    char msg_persistentes[5][300];// 5 mensagens com 300 de comprimento
+    char nome_topico[TAM];
     int bloqueado; // 0- desbloqueado !0-bloqueado 
-    Msg msgs[5];
-}Topico;
+
+    char msgs_persistentes[MAX_MSG_PER][MSG];// 5 mensagens com 300 de comprimento
+    MENSAGEM mensagens[5];
+}TOPICO;
