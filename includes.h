@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <stdbool.h>
 
 //TAM MAX DE...
 #define NOME 20
@@ -51,7 +52,7 @@ typedef struct
     char corpo_msg[MSG];
     int duracao; //a msg tem uma duração por isso pus isto aqui pode ser sujeito a alterações
 
-}Msg; // NO MEU CODIGO TEM O NOME DE MENSAGEM
+}MENSAGEM; // (Msg) NO MEU CODIGO TEM O NOME DE MENSAGEM
 
 
 typedef struct 
