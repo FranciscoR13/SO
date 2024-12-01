@@ -9,9 +9,9 @@
 #include <pthread.h>
 
 //TAM MAX DE...
-#define NOME 20
-#define TOPIC 20
-#define MSG 300
+#define TAM_NOME 20
+#define TAM_TOPICO 20
+#define TAM_MSG 300
 #define TAM 20
 
 // MAX Nº DE...
@@ -23,45 +23,43 @@
 #define FIFO_SERV "M_PIPE"  //MANAGER-PIPE
 #define FIFO_CLI "F_%d"     //FEED-PIPE(PID)
 
-// Á PARTIDA APENAS USADA NO MANAGER
+// A PARTIDA APENAS USADA NO MANAGER
 typedef struct {
-    int man_pipe;                          // PIPE QUE RECEBE OS LOGINS
-    int nUsers;                            // Nº USERS
-    int users_pids[MAX_USERS];             // TABELA COM OS PIDS
-    char users_names[MAX_USERS][NOME];     // TABELA COM OS USERNAMES
+    int man_pipe;
+    int nUsers;
+    int users_pids[MAX_USERS];
+    char users_names[MAX_USERS][TAM_NOME];
 }THREAD_LOGIN;
 
 typedef struct {
-    int *man_pipe;                 // PIPE QUE RECEBE AS MSG (ESTE É * PQ ESTAVA A TESTAR E NAO MUDEI O OUTRO)
-    THREAD_LOGIN *thread_login;    // SERVE PARA TER ACESSO A TABELA DOS USERS (QUERO MUDAR PARA UM PONTEIRO PARA A TABELA))
-    bool ligado;                   //AINDA EM TESTE MAS APENAS PARA FECHAR A THREAD
+    int *man_pipe;
+    THREAD_LOGIN *thread_login;
+    bool ligado;
+    //...
 }THREAD_MSG;
 
 typedef struct {
     int pid;
-    char username[NOME];
+    char username[TAM_NOME];
 }LOGIN;
 
 typedef struct {
-    char str[MSG];
+    char str[TAM_MSG];
     //...
 }RESPOSTA;
 
-typedef struct 
-{
+typedef struct {
+    char topico[TAM_TOPICO];
+    char corpo_msg[TAM_MSG];
+    int duracao;      //duracao da msg
     int pid;
-    char topico[TOPICO];//para sabermos a que topico pertence
-    char corpo_msg[MSG];
-    int duracao; //a msg tem uma duração por isso pus isto aqui pode ser sujeito a alterações
+}MENSAGEM;
 
-}MENSAGEM; // (Msg) NO MEU CODIGO TEM O NOME DE MENSAGEM
-
-
-typedef struct 
+typedef struct
 {
     char nome_topico[TAM];
-    int bloqueado; // 0- desbloqueado !0-bloqueado 
+    int bloqueado; // 0- desbloqueado !0-bloqueado
 
-    char msgs_persistentes[MAX_MSG_PER][MSG];// 5 mensagens com 300 de comprimento
-    MENSAGEM mensagens[5];
+    char msgs_persistentes[MAX_MSG_PER][TAM_MSG];// 5 mensagens com 300 de comprimento
+    MENSAGEM mensagens[MAX_MSG_PER];
 }TOPICO;
