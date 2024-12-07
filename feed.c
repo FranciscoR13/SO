@@ -174,7 +174,7 @@ int main(int argc, char* argv[]) {
         unlink(fifo_feed);
         return 2;
     }
-    printf("\n[LOGIN CONCLUIDO]\n Bem-vindo %s! (PID: %d)\n", argv[1], pid);
+    printf("\n[LOGIN CONCLUIDO]\nBem-vindo %s! (PID: %d)\n", argv[1], pid);
     // CONTINUA SE O LOGIN FOI CONCLUIDO
 
     // CONFIGURACAO DA ESTRUTURA DE DADOS
@@ -216,6 +216,6 @@ int main(int argc, char* argv[]) {
     close(man_pipe_log);
     unlink(fifo_feed);
 
-    printf("\nFim Feed...\n");
+    printf("\nFIM FEED...\n");
     return 0;
 }
