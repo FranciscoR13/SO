@@ -1,6 +1,7 @@
 #include "includes.h"
 
-bool fecha_login(const int pid) {
+// ENVIA UMA "RESPOSTA" A UM USER
+bool envia_info(const int pid) {
     // VARIAVEIS AUXILIARES
     RESPOSTA r;
     char fifo_feed[TAM];
@@ -12,7 +13,7 @@ bool fecha_login(const int pid) {
     feed_pipe = open(fifo_feed, O_WRONLY);
 
     //ENVIA MENSAGEM DE TERMINO
-    strcpy(r.str, "FECHOU");
+    strcpy(r.str, "QUIT");
     tam = write(feed_pipe, &r, sizeof(RESPOSTA));
 
     // FECHA E RETORNA
@@ -23,110 +24,127 @@ bool fecha_login(const int pid) {
     close(feed_pipe);
     return false;
 }
+//...
 
-bool verifica_login(const LOGIN *l, const THREAD_LOGIN *tl) {
-    //verificar se o username ja existe
-    for (int i = 0; i < tl->nUsers; i++) {
-        if (strcmp(tl->users_names[i], l->username) == 0 || tl->users_pids[i] == l->pid) {
-            return false;
-        }
-    }
-    return true;
-}
+// FUNCAO DA THREAD_LOG QUE FICA A RECEBER OS USERS
+void *executa_login(void *data) {
 
-void *executa_login(void *thread_login) {
-    THREAD_LOGIN *tl = (THREAD_LOGIN *) thread_login;
+    // VARIAVEIS
+    DATA *d = (DATA *)data;
     LOGIN l;
     RESPOSTA r;
-
     char fifo_feed[TAM];
-    int feed_pipe;
+    int feed_pipe, man_pipe_log, nb;
+    // FIM VARIAVEIS
 
-    while (tl->nUsers < 20) {
-        // Lê dados do pipe
-        if (read(tl->man_pipe, &l, sizeof(LOGIN)) != sizeof(LOGIN)) {
-            perror("Erro ao ler dados de login");
-            continue;  // Continua a próxima iteração se ocorrer um erro
+    // CRIA O FIFO_SERV_LOG E ABRE
+    mkfifo(FIFO_SERV_LOG, 0600);
+    man_pipe_log = open(FIFO_SERV_LOG, O_RDWR);
+    if (man_pipe_log < 0) {
+        perror("Erro ao abrir FIFO_SERV_LOG");
+        return NULL;
+    }
+    // ABRE PARA LEITURA E ESCRITA PARA FUNCIONAR SEM USERS
+
+    // CICLO QUE FICA A RECEBER OS LOGINS
+    // >>>>>>ALTERAR<<<<<<
+    while (1) {
+
+        // LÊ O FIFO_SERV_LOG
+        nb = read(man_pipe_log, &l, sizeof(LOGIN));
+        if (nb != sizeof(LOGIN)) {
+            perror("\nErro ao ler dados de login\n");
+            continue;
         }
+        // CONTINUA SE RECEBER O LOGIN CORRETAMENTE
 
-        // Prepara o nome do FIFO
+        // CONSTROI O NOMEDO FIFO_CLI
         snprintf(fifo_feed, TAM, FIFO_CLI, l.pid);
-
-        // Abre o FIFO para enviar resposta
         feed_pipe = open(fifo_feed, O_WRONLY);
         if (feed_pipe < 0) {
-            perror("Erro ao abrir FIFO");
-            continue;  // Tenta novamente na próxima iteração
+            perror("\nErro ao abrir FIFO do cliente\n");
+            continue;
         }
+        // CONTINUA SE CORREU BEM
 
-        // Verifica se o login é válido
-        if (verifica_login(&l, tl)) {
-            // Login bem-sucedido
-            strcpy(r.str, "OK");
-            if (write(feed_pipe, r.str, sizeof(RESPOSTA)) == sizeof(RESPOSTA)) {
-                // Adiciona o usuário às listas
-                snprintf(tl->users_names[tl->nUsers], TAM_NOME, "%s", l.username);
-                tl->users_pids[tl->nUsers] = l.pid;
-                tl->nUsers++;
+        // CONSTROI O NOME DO FIFO_CLI
+        snprintf(fifo_feed, TAM, FIFO_CLI, l.pid);
+        feed_pipe = open(fifo_feed, O_WRONLY);
+        if (feed_pipe < 0) {
+            perror("\nErro ao abrir FIFO do cliente\n");
+            continue;
+        }
+        // VAI SER USADO PARA RETORNAR A RESPOSTA
+
+        // VERIFICA SE O USERNAME JA EXISTE
+        bool valido = true;
+        //pthread_mutex_lock(d->ptrinco); ????????????????
+        for (int i = 0; i < d->nUsers; i++) {
+
+            // MUTEX QUE TRANCA O ACESSO
+            pthread_mutex_lock(d->ptrinco);
+            if (strcmp(d->users_names[i], l.username) == 0 || d->users_pids[i] == l.pid) {
+                valido = false;
+                break;
             }
+            pthread_mutex_unlock(d->ptrinco);
+            // DESTRANCA O ACEESO AOS DADOS
+
+        }
+        // SE FOR VALIDO CONTINUA A TRUE
+
+        // ENVIA A RESPOSTA AO USER
+        if (valido) {
+            strcpy(r.str, "SUCCESS");
+            write(feed_pipe, &r, sizeof(RESPOSTA));
+
+            // ADICIONA O USERNAME E O PID AOS DADOS
+            pthread_mutex_lock(d->ptrinco);
+            snprintf(d->users_names[d->nUsers], TAM_NOME, "%s", l.username);
+            d->users_pids[d->nUsers++] = l.pid;
+            pthread_mutex_unlock(d->ptrinco);
+
         } else {
-            // Login falhou
             strcpy(r.str, "FAIL");
-            write(feed_pipe, r.str, sizeof(RESPOSTA));
+            write(feed_pipe, &r, sizeof(RESPOSTA));
         }
-
-        // Fecha o FIFO
         close(feed_pipe);
+        // INDEPENDENTE DA RESPOSTA O PIPE É FECHADO
     }
+
+    //>>>>>>>AINDA FALTA FECHAR ESTA THREAD CORRETAMENTE<<<<<<<<
+    close(man_pipe_log);
+    unlink(FIFO_SERV_LOG);
 
     return NULL;
 }
+//...
 
+// FUNCAO DA THREAD_MSG QUE FICA A RECEBER AS MENSAGENS
+void* revecebe_msg(void* data) {
 
-void *recebe_msg(void *thread_msg) {
-    THREAD_MSG *tm = (THREAD_MSG *) thread_msg;
-    MENSAGEM m;
-    RESPOSTA r;
+    //VARIAVEIS
 
-    int tam;
-    char fifo_feed[TAM];
-    int feed_pipe;
-
-    do {
-        tam = read(*tm->man_pipe, &m, sizeof(MENSAGEM));
-        if (tam == sizeof(MENSAGEM)) {
-            printf("\n\nMENSAGEM DE [%d] | TOPICO[%s] | MSG[%s]\n", m.pid, m.topico, m.corpo_msg);
-
-            // CONSTROI NOME/ABRE/RESPONDE/FECHA FIFO_CLI
-            sprintf(fifo_feed, FIFO_CLI, m.pid);
-            feed_pipe = open(fifo_feed, O_WRONLY);
-
-            strcpy(r.str, "OK");
-            tam = write(feed_pipe, &r, sizeof(RESPOSTA));
-            if (tam > 0) {
-                printf("ENVIEI... '%s'\n\n", r.str);
-                close(feed_pipe);
-            }
-        }
-    } while (tm->ligado);
-
-    int n = tm->thread_login->nUsers;
-    for (int i = 0; i < n; i++) {
-        if (fecha_login(tm->thread_login->users_pids[i])) {
-            tm->thread_login->users_pids[i] = tm->thread_login->users_pids[n - 1];
-            tm->thread_login->nUsers--;
-        }
-    }
+    //FIM VARIAVEIS
 
     return NULL;
 }
+//...
 
 // MOSTRA OS USERNAMES E OS RESPETIVOS PIDS DE TODOS
-void mostra_users(THREAD_LOGIN *tl) {
-    printf("\n\nUSERS(%d):\n", tl->nUsers);
-    for (int i = 0; i < tl->nUsers; i++) {
-        printf(" %d: %s | %d\n", i+1, tl->users_names[i], tl->users_pids[i]);
+void mostra_users(DATA *d) {
+
+    pthread_mutex_lock(d->ptrinco);
+    int n = d->nUsers;
+    pthread_mutex_unlock(d->ptrinco);
+
+    printf("\n\nUSERS(%d):\n", n);
+    for (int i = 0; i < n; i++) {
+        pthread_mutex_lock(d->ptrinco);
+        printf(" %d: %s | %d\n", i+1, d->users_names[i], d->users_pids[i]);
+        pthread_mutex_unlock(d->ptrinco);
     }
+
     printf("\n\n");
 }
 
@@ -135,71 +153,65 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    // VARIAVEIS
-    char cmd[TAM];
-    int man_pipe;
-
     // EXISTE SERVIDOR ON?(SO PODE EXISTIR UM)
     if (access(FIFO_SERV,F_OK) == 0) {
         printf("[ERRO]-SERVER ON\n");
         exit(3);
     }
 
+    // DATA
+    DATA data;
+    data.nUsers = 0;
+    pthread_mutex_t trinco;
+    data.ptrinco = &trinco;
+    // FIM DATA
+
     // MENSAGENS INICIAIS
     printf("INICIO MANAGER...\n");
     printf("ESPERANDO USERS...\n");
 
-    // CRIA/ABRE FIFO_SERV
-    mkfifo(FIFO_SERV, 0600);
-    man_pipe = open(FIFO_SERV, O_RDWR);
-
-    // LOGIN
-    pthread_t thread_login_id;
-    THREAD_LOGIN thread_login;
-
-    thread_login.nUsers = 0;
-    thread_login.man_pipe = man_pipe;
-
-    pthread_create(&thread_login_id, NULL, executa_login, &thread_login);
-    // FIM LOGIN
+    // THREAD LOGIN
+    pthread_t thread_login;
+    pthread_create(&thread_login, NULL, executa_login, &data);
+    //...
 
     // MSG
-    pthread_t thread_msg_id;
-    THREAD_MSG thread_msg;
 
-    thread_msg.man_pipe = &man_pipe;
-    thread_msg.thread_login = &thread_login;
-    pthread_create(&thread_msg_id, NULL, recebe_msg, &thread_msg);
-    // FIM MSG
+    //...
 
     // CICLO PRINCIPAL
+    char cmd[TAM];
     do {
+
         printf("ADMIN CMD> ");
         fflush(stdout);
         scanf("%s", cmd);
         printf("A executar '%s' ... \n", cmd);
 
-        if (strcmp(cmd, "para") == 0) {
-            thread_msg.ligado = false;
-            int n = thread_login.nUsers;
-            for (int i = 0; i < n; i++) {
-                if (fecha_login(thread_login.users_pids[i])) {
-                    thread_login.users_pids[i] = thread_login.users_pids[n - 1];
-                    thread_login.nUsers--;
+        if (strcmp(cmd, "users") == 0) {
+            mostra_users(&data);
+            continue;
+        }
+
+        //RETIRA TODOS OS USER LIGADOS AO SERVER
+        if (strcmp(cmd, "para") == 0 || strcmp(cmd, "quit") == 0) {
+            for(int i=data.nUsers-1; i>=0; i--) {
+                if(envia_info(data.users_pids[i])) {
+                    data.nUsers--;
+                }else {
+                    printf(" NAO DEU!\n");
                 }
             }
+            continue;
         }
 
-        if (strcmp(cmd, "users") == 0) {
-            mostra_users(&thread_login);
-        }
-
-    } while (strcmp(cmd, "quit") != 0); // TEMPORARIO
+    } while (strcmp(cmd, "quit") != 0);
 
 
     // FECHA PIPES & APAGA FIFO
-    close(man_pipe);
+    //close(man_pipe);
     unlink(FIFO_SERV);
+    unlink(FIFO_SERV_LOG);
 
     printf("\nFIM MANAGER...\n");
 
