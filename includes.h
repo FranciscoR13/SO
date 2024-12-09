@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <signal.h>
 #include <pthread.h>
 
 //TAM MAX DE...
@@ -20,23 +21,17 @@
 #define MAX_MSG_PER 5
 
 // FIFOS
-#define FIFO_SERV "M_PIPE"  //MANAGER-PIPE
-#define FIFO_CLI "F_%d"     //FEED-PIPE(PID)
+#define FIFO_SERV_LOG "M_PIPE_LOG"  //MANAGER-PIPE LOGINS
+#define FIFO_SERV "M_PIPE"          //MANAGER-PIPE
+#define FIFO_CLI "F_%d"             //FEED-PIPE(PID)
 
 // A PARTIDA APENAS USADA NO MANAGER
 typedef struct {
-    int man_pipe;
     int nUsers;
     int users_pids[MAX_USERS];
     char users_names[MAX_USERS][TAM_NOME];
-}THREAD_LOGIN;
-
-typedef struct {
-    int *man_pipe;
-    THREAD_LOGIN *thread_login;
-    bool ligado;
-    //...
-}THREAD_MSG;
+    pthread_mutex_t *ptrinco;
+}DATA;
 
 typedef struct {
     int pid;
