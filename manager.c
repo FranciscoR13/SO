@@ -12,7 +12,7 @@ bool envia_info(const int pid) {
     sprintf(fifo_feed, FIFO_CLI, pid);
     feed_pipe = open(fifo_feed, O_WRONLY);
 
-    //ENVIA MENSAGEM DE TERMINO
+    //ENVIA MENSAGEM DE TERMINO(TEMPORARIO)
     strcpy(r.str, "QUIT");
     tam = write(feed_pipe, &r, sizeof(RESPOSTA));
 
