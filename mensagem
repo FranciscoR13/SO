@@ -1,0 +1,105 @@
+//PARTE DO MANAGER
+
+memset(m.topico, 0, TAM_TOPICO);
+        memset(m.corpo_msg, 0, TAM_MSG);
+        m.duracao = 0;
+        
+
+        int tam = read(feed_pipe, &m, sizeof(MENSAGEM));
+        printf("Tópico recebido: %s Msg recebida: %s Duracao: %d\n", m.topico, m.corpo_msg, m.duracao);
+
+        for (int i = 0; i < TAM_TOPICO; i++) {
+            // Verifica se o tópico já existe
+            if (strcmp(t[i].nome_topico, m.topico) == 0) {
+                for (int j = 0; j < MAX_MSG_PER; j++) {
+                    // Verifica se o slot da mensagem está vazio
+                    if (t[i].mensagens[j].corpo_msg[0] == '\0') {
+                        strcpy(t[i].mensagens[j].corpo_msg, m.corpo_msg);
+                        t[i].mensagens[j].duracao = m.duracao;
+                        break; // Sai do loop após adicionar a mensagem
+                    }
+                }
+            } else if (t[i].nome_topico[0] == '\0') { // Se o tópico ainda não existe
+                strcpy(t[i].nome_topico, m.topico);
+                strcpy(t[i].mensagens[0].corpo_msg, m.corpo_msg);
+                t[i].mensagens[0].duracao = m.duracao;
+                break; // Sai do loop após criar o tópico
+            }
+        }
+
+// Exibe os tópicos e suas mensagens !PARA TESTAR!
+for (int i = 0; i < TAM_TOPICO; i++) {
+    if (t[i].nome_topico[0] != '\0') {
+        printf("Tópico: %s\n", t[i].nome_topico);
+        for (int j = 0; j < MAX_MSG_PER; j++) {
+            if (t[i].mensagens[j].corpo_msg[0] != '\0') {
+                printf("  Mensagem: %s (Duração: %d)\n", t[i].mensagens[j].corpo_msg, t[i].mensagens[j].duracao);
+            }
+        }
+    }
+}
+
+
+
+//PARTE DO FEED
+
+
+// FUNCAO QUE ENVIA MENSAGEM
+void envia_msg(int man_pipe_msg, int feed_pipe) {
+    // VARIAVEIS
+    MENSAGEM m;
+    RESPOSTA r;
+    char c;
+    char msg[TAM_MSG], topic[TAM_TOPICO];
+    int duracao;
+    int tam;
+
+    while ((c = getchar()) != '\n' && c != EOF);
+
+    // TOPICO?
+    printf("\nTOPICO: ");
+    fflush(stdout);
+    fgets(topic, TAM_TOPICO, stdin);
+    topic[strcspn(topic, "\n")] = '\0';
+
+    while ((c = getchar()) != '\n' && c != EOF);
+    fflush(stdout);
+
+    // MENSAGEM?
+    printf("MENSAGEM: ");
+    fgets(msg, TAM_MSG, stdin);
+    msg[strcspn(msg, "\n")] = '\0';
+
+    //DURAÇÃO
+
+    printf("DURACAO: ");
+    fflush(stdin);
+    scanf("%d", &duracao);
+
+    
+    
+    // ESTRUTURA MENSAGEM   
+    m.pid = getpid();
+    strcpy(m.topico, topic);
+    strcpy(m.corpo_msg, msg);
+    m.duracao = duracao;
+
+    
+    // ENVIA A MENSAGEM PARA O MANAGER
+    tam = write(man_pipe_msg, &m, sizeof(MENSAGEM));
+    if (tam == sizeof(MENSAGEM)) {
+        printf("\n[ENVIO] Topico: '%s' | Mensagem: '%s'\n", m.topico, m.corpo_msg );
+
+        /*
+        // RECEBE RESPOSTA DO SERVIDOR !AINDA NÃO ESTA IMPLEMENTADO!
+        tam = read(feed_pipe, &r, sizeof(RESPOSTA));
+        if (tam == sizeof(RESPOSTA)) {
+            if (strcmp(r.str, "FECHOU") == 0) 
+                printf("\n[AVISO] O servidor foi encerrado.\n");
+                return false;
+            }
+            printf("\n[RESPOSTA DO SERVER]: '%s'\n", r.str);
+        }
+        */
+    }
+}
