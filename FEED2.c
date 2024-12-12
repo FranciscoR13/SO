@@ -47,50 +47,74 @@ bool login(int man_pipe, int feed_pipe, char* username, int pid) {
 
 // FUNCAO QUE ENVIA MENSAGEM
 bool envia_msg(int man_pipe, int feed_pipe) {
-    // VARIAVEIS
     MENSAGEM m;
+    RESPOSTA r;
     char msg[TAM_MSG], topic[TAM_TOPICO];
+    int tam;
 
-    // LIMPA BUFFER
+    // Limpa buffers de entrada
     int c;
     while ((c = getchar()) != '\n' && c != EOF);
 
-    // TOPICO?
+    // Pergunta o tópico ao usuário
     printf("\nTOPICO: ");
     fflush(stdout);
-    fgets(topic, TAM_TOPICO, stdin);
-    topic[strcspn(topic, "\n")] = '\0';
+    if (fgets(topic, TAM_TOPICO, stdin) == NULL) {
+        perror("Erro ao ler o tópico");
+        return false;
+    }
+    topic[strcspn(topic, "\n")] = '\0'; // Remove o '\n'
 
-    // MENSAGEM?
+    if (strlen(topic) == 0) {
+        printf("[AVISO] Tópico não pode estar vazio!\n");
+        return false;
+    }
+
+    // Pergunta a mensagem ao usuário
     printf("MENSAGEM: ");
     fflush(stdout);
-    fgets(msg, TAM_MSG, stdin);
-    msg[strcspn(msg, "\n")] = '\0';
-
-    // ESTRUTURA MENSAGEM
-    m.pid = getpid();
-    strcpy(m.topico, topic);
-    strcpy(m.corpo_msg, msg);
-
-    /*
-    // ENVIA A MENSAGEM PARA O MANAGER
-    tam = write(man_pipe, &m, sizeof(MENSAGEM));
-    if (tam == sizeof(MENSAGEM)) {
-        printf("\n[ENVIO] Topico: '%s' | Mensagem: '%s'\n", m.topico, m.corpo_msg);
-
-        // RECEBE RESPOSTA DO SERVIDOR
-        tam = read(feed_pipe, &r, sizeof(RESPOSTA));
-        if (tam == sizeof(RESPOSTA)) {
-            if (strcmp(r.str, "FECHOU") == 0) {
-                printf("\n[AVISO] O servidor foi encerrado.\n");
-                return false;
-            }
-            printf("\n[RESPOSTA DO SERVER]: '%s'\n", r.str);
-        }
+    if (fgets(msg, TAM_MSG, stdin) == NULL) {
+        perror("Erro ao ler a mensagem");
+        return false;
     }
-    */
+    msg[strcspn(msg, "\n")] = '\0'; // Remove o '\n'
+
+    if (strlen(msg) == 0) {
+        printf("[AVISO] Mensagem não pode estar vazia!\n");
+        return false;
+    }
+
+    // Preenche a estrutura de mensagem
+    m.pid = getpid();
+    strncpy(m.topico, topic, sizeof(m.topico) - 1);
+    m.topico[sizeof(m.topico) - 1] = '\0';
+    strncpy(m.corpo_msg, msg, sizeof(m.corpo_msg) - 1);
+    m.corpo_msg[sizeof(m.corpo_msg) - 1] = '\0';
+
+    // Envia a mensagem ao servidor
+    tam = write(man_pipe, &m, sizeof(MENSAGEM));
+    if (tam != sizeof(MENSAGEM)) {
+        perror("[ERRO] Falha ao enviar a mensagem ao servidor");
+        return false;
+    }
+
+    // Aguarda resposta do servidor
+    tam = read(feed_pipe, &r, sizeof(RESPOSTA));
+    if (tam != sizeof(RESPOSTA)) {
+        perror("[ERRO] Falha ao receber resposta do servidor");
+        return false;
+    }
+
+    // Processa a resposta do servidor
+    if (strcmp(r.str, "FECHOU") == 0) {
+        printf("[INFO] O servidor foi desligado.\n");
+        return false; // Indica que o servidor fechou
+    }
+
+    printf("[RESPOSTA DO SERVIDOR]: %s\n", r.str);
     return true;
 }
+
 
 // FUNCAO DA THREAD QUE RECEBE "RESPOSTAS" DO SERVER
 void* recebe_info(void* rb) {
@@ -137,7 +161,7 @@ int main(int argc, char* argv[]) {
 
     // VARIAVEIS
     char cmd[TAM], fifo_feed[20];
-    int man_pipe_log, feed_pipe;
+    int man_pipe_log, man_pipe_msg, feed_pipe;
     pid_t pid = getpid();
     //...
 
@@ -153,6 +177,7 @@ int main(int argc, char* argv[]) {
     mkfifo(fifo_feed, 0600);
     feed_pipe = open(fifo_feed, O_RDWR);
     man_pipe_log = open(FIFO_SERV_LOG, O_WRONLY);
+    man_pipe_msg = open(FIFO_SERV_LOG, O_WRONLY);
     //...
 
     // MENSAGEM ABERTURA
@@ -186,7 +211,7 @@ int main(int argc, char* argv[]) {
         if (scanf("%s", cmd) == EOF) break;
 
         if (strcmp(cmd, "msg") == 0) {
-            if (envia_msg(man_pipe_log, feed_pipe)) {
+            if (envia_msg(man_pipe_msg, feed_pipe)) {
 
             }
             continue;
