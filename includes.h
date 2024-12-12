@@ -52,7 +52,7 @@ typedef struct
     MENSAGEM mensagens[MAX_MSG_PER];
     int nMsgs;
 
-    int subescritos[MAX_USERS][TAM_NOME];
+    int subescritos_pid[MAX_USERS];
     int nSubs;
 
 }TOPICO;
