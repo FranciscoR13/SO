@@ -1,33 +1,11 @@
 #include "includes.h"
 
-// Comando 'topics': mostra todos os tópicos, se não existirem topicos da erro
-void listar_topicos(int num_topicos) {
-    if (num_topicos == 0) {
-        printf("Não existem tópicos cadastrados.\n");
-        return;
-    }
-
-    //resto do codigo para fazer o comando funcionar
-}
-
-// ESTRUTURA PARA PARTILHAR OS DADOS COM THREAD
-typedef struct {
-    pthread_t main_thread; // ID da thread principal
-    int feed_pipe;         // Pipe para comunicação
-    int thread_finished;   // Flag para saber se a thread acabou
-} ThreadData;
-
-// SINAL PARA AVISAR A THREAD PRINCIPAL
-void para_recebe_inf(int sig) {
-    if (sig == SIGUSR1) {
-        printf("\n[NOTIFICAÇÃO] Foste expulso do server.\n");
-    }
-}
-
 // FUNCAO DE LOGIN QUE ENVIA O USERNAME E O PID
-bool login(int man_pipe, int feed_pipe, char* username, int pid) {
+// FUNCAO DE LOGIN QUE ENVIA O USERNAME E O PID
+bool login(int man_pipe, int feed_pipe, char *username, int pid) {
     // VARIAVEIS
     int tam;
+    PEDIDO p;
     LOGIN l;
     RESPOSTA r;
 
@@ -36,98 +14,125 @@ bool login(int man_pipe, int feed_pipe, char* username, int pid) {
     l.username[sizeof(l.username) - 1] = '\0'; // Garantir que a string seja terminada
     l.pid = pid;
 
+    // ESTRUTURA PEDIDO LOGIN
+    p.tipo = 1;
+    p.l = l;
+
     // TENTA ENVIAR O LOGIN
-    tam = write(man_pipe, &l, sizeof(LOGIN));
-    if (tam < sizeof(LOGIN)) {
-        return false; // Se não escreveu todos os bytes
+    tam = write(man_pipe, &p, sizeof(PEDIDO));
+    if (tam < 0) {
+        perror("[ERRO] Falha ao escrever no pipe do manager");
+        return false;
+    } else if (tam != sizeof(PEDIDO)) {
+        fprintf(stderr, "[ERRO] Escrita incompleta no pipe do manager\n");
+        return false;
     }
 
-    // TENTA RECEBER O LOGIN
+    // TENTA RECEBER A RESPOSTA DO MANAGER
     tam = read(feed_pipe, &r, sizeof(RESPOSTA));
-    if (tam != sizeof(RESPOSTA) || strcmp(r.str, "FAIL") == 0) {
-        return false; // Se não leu todos os bytes esperados
+    if (tam < 0) {
+        perror("[ERRO] Falha ao ler do pipe do feed");
+        return false;
+    } else if (tam != sizeof(RESPOSTA)) {
+        fprintf(stderr, "[ERRO] Leitura incompleta do pipe do feed\n");
+        return false;
+    }
+
+    // VERIFICA A RESPOSTA
+    if (strcmp(r.str, "FAIL") == 0) {
+        fprintf(stderr, "[LOGIN FALHOU] Username ou PID inválidos\n");
+        return false;
     }
 
     return true;
 }
+
 
 // FUNCAO QUE ENVIA MENSAGEM
 bool envia_msg(int man_pipe, int feed_pipe) {
     // VARIAVEIS
+    PEDIDO p;
     MENSAGEM m;
+    //RESPOSTA r;
     char msg[TAM_MSG], topic[TAM_TOPICO];
+    int tam;
+    // FIM VARIAVEIS
 
-    // LIMPA BUFFER
+    // Limpa buffers de entrada para evitar resíduos
     int c;
     while ((c = getchar()) != '\n' && c != EOF);
 
-    // TOPICO?
+    // Solicita o tópico ao usuário
     printf("\nTOPICO: ");
     fflush(stdout);
-    fgets(topic, TAM_TOPICO, stdin);
-    topic[strcspn(topic, "\n")] = '\0';
+    if (fgets(topic, TAM_TOPICO, stdin) == NULL) {
+        perror("[ERRO] Falha ao ler o tópico");
+        return false;
+    }
+    topic[strcspn(topic, "\n")] = '\0'; // Remove o '\n'
 
-    // MENSAGEM?
+    if (strlen(topic) == 0) {
+        printf("[AVISO] Tópico não pode estar vazio!\n");
+        return false;
+    }
+
+    // Solicita a mensagem ao usuário
     printf("MENSAGEM: ");
     fflush(stdout);
-    fgets(msg, TAM_MSG, stdin);
-    msg[strcspn(msg, "\n")] = '\0';
+    if (fgets(msg, TAM_MSG, stdin) == NULL) {
+        perror("[ERRO] Falha ao ler a mensagem");
+        return false;
+    }
+    msg[strcspn(msg, "\n")] = '\0'; // Remove o '\n'
 
-    // ESTRUTURA MENSAGEM
+    if (strlen(msg) == 0) {
+        printf("[AVISO] Mensagem não pode estar vazia!\n");
+        return false;
+    }
+
+    // Preenche a estrutura de mensagem
     m.pid = getpid();
-    strcpy(m.topico, topic);
-    strcpy(m.corpo_msg, msg);
+    strncpy(m.topico, topic, sizeof(m.topico) - 1);
+    m.topico[sizeof(m.topico) - 1] = '\0';
+    strncpy(m.corpo_msg, msg, sizeof(m.corpo_msg) - 1);
+    m.corpo_msg[sizeof(m.corpo_msg) - 1] = '\0';
+
+    //>>>>>>>>>ALTERAR<<<<<<<<<<
+    m.duracao = 0;
+    //>>>>>>>>>ALTERAR<<<<<<<<<<
+
+
+    //ESTRUTURA PEDIDO
+    p.tipo = 2;
+    p.m = m;
+
+    // Envia a mensagem ao servidor
+    tam = write(man_pipe, &p, sizeof(PEDIDO));
+    if (tam != sizeof(PEDIDO)) {
+        perror("[ERRO] Falha ao enviar a mensagem ao servidor");
+        return false;
+    }
 
     /*
-    // ENVIA A MENSAGEM PARA O MANAGER
-    tam = write(man_pipe, &m, sizeof(MENSAGEM));
-    if (tam == sizeof(MENSAGEM)) {
-        printf("\n[ENVIO] Topico: '%s' | Mensagem: '%s'\n", m.topico, m.corpo_msg);
-
-        // RECEBE RESPOSTA DO SERVIDOR
-        tam = read(feed_pipe, &r, sizeof(RESPOSTA));
-        if (tam == sizeof(RESPOSTA)) {
-            if (strcmp(r.str, "FECHOU") == 0) {
-                printf("\n[AVISO] O servidor foi encerrado.\n");
-                return false;
-            }
-            printf("\n[RESPOSTA DO SERVER]: '%s'\n", r.str);
-        }
+    // Aguarda a resposta do servidor
+    tam = read(feed_pipe, &r, sizeof(RESPOSTA));
+    if (tam < 0) {
+        perror("[ERRO] Falha ao ler a resposta do servidor");
+        return false;
+    } else if (tam != sizeof(RESPOSTA)) {
+        fprintf(stderr, "[ERRO] Resposta incompleta do servidor\n");
+        return false;
     }
+
+    printf("[RESPOSTA DO SERVIDOR]: %s\n", r.str);
     */
+
     return true;
 }
 
-// FUNCAO DA THREAD QUE RECEBE "RESPOSTAS" DO SERVER
-void* recebe_info(void* arg) {
-
-    // ESTRUTURA COM OS DADOS
-    ThreadData* data = (ThreadData*)arg;
-
-    while (1) {
-        RESPOSTA r;
-        
-        int nb = read(data->feed_pipe, &r, sizeof(RESPOSTA));
-        if (nb != sizeof(RESPOSTA)) {
-            perror("\nErro ao ler dados do feed");
-            continue;
-        }
-
-        if (strcmp(r.str, "QUIT") == 0) {
-            data->thread_finished = 1;                   // Marca como finalizada
-            pthread_kill(data->main_thread, SIGUSR1);    // Notifica a thread principal
-            return NULL;                                 // Sai imediatamente da thread
-        }
-
-        // AINDA POR IMPLEMENTAR...
-        printf("[Mensagem do Server]: %s\n", r.str);
-    }
-
-    return NULL;
-}
 
 // MAIN
-int main(int argc, char* argv[]) {
+int main(int argc, char *argv[]) {
     if (argc != 2) {
         printf("\nNúmero de argumentos inválido!\n");
         return 1;
@@ -135,85 +140,154 @@ int main(int argc, char* argv[]) {
     // TERMINAR SE O Nª ESTIVER INCORRETO
 
     // VERIFICA SE O SERVER ESTÁ ON
-    if (access(FIFO_SERV_LOG, F_OK) != 0) {
+    if (access(FIFO_SERV, F_OK) != 0) {
         printf("[ERRO] Servidor está offline.\n");
         return 1;
     }
 
     // VARIAVEIS
     char cmd[TAM], fifo_feed[20];
-    int man_pipe_log, feed_pipe;
+    int man_pipe, feed_pipe, s;
     pid_t pid = getpid();
-    ThreadData thread_data;
-    //...
-
-    // CONFIGURAÇÃO DO SINAL
-    struct sigaction sa;
-    sa.sa_handler = para_recebe_inf;
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = 0;
-    sigaction(SIGUSR1, &sa, NULL);
+    fd_set fds;
     //...
 
     // CONFIGURA OS FIFOS
     snprintf(fifo_feed, sizeof(fifo_feed), FIFO_CLI, pid);
     mkfifo(fifo_feed, 0600);
+
     feed_pipe = open(fifo_feed, O_RDWR);
-    man_pipe_log = open(FIFO_SERV_LOG, O_WRONLY);
+    if (feed_pipe < 0) {
+        perror("[ERRO] Falha ao abrir FIFO_FEED");
+        unlink(fifo_feed);
+        return 1;
+    }
+
+    man_pipe = open(FIFO_SERV, O_WRONLY);
+    if (man_pipe < 0) {
+        perror("[ERRO] Falha ao abrir FIFO_SERV");
+        close(feed_pipe);
+        unlink(fifo_feed);
+        return 1;
+    }
     //...
+
 
     // MENSAGEM ABERTURA
     printf("INICIO FEED...\n");
     //...
 
     // FAZ O LOGIN
-    if (!login(man_pipe_log, feed_pipe, argv[1], pid)) {
+    if (!login(man_pipe, feed_pipe, argv[1], pid)) {
         printf("\n[ERRO] Falha no login.\n");
         close(feed_pipe);
-        close(man_pipe_log);
+        close(man_pipe);
         unlink(fifo_feed);
         return 2;
     }
     printf("\n[LOGIN CONCLUIDO]\nBem-vindo %s! (PID: %d)\n", argv[1], pid);
     // CONTINUA SE O LOGIN FOI CONCLUIDO
 
-    // CONFIGURACAO DA ESTRUTURA DE DADOS
-    thread_data.main_thread = pthread_self();
-    thread_data.feed_pipe = feed_pipe;
-    thread_data.thread_finished = 0;
 
-    // CRIA A THREAD QUE RECEBE INFO DO SERVER
-    pthread_t thread_server;
-    pthread_create(&thread_server, NULL, recebe_info, &thread_data);
+    // LOOP PRINCIPAL
+    bool termina = false;
+    bool linha_cmd = true;
 
-    // LOOP DOS COMANDOS
-    while (!thread_data.thread_finished) {
-        printf("%s CMD> ", argv[1]);
-        fflush(stdout);
-        if (scanf("%s", cmd) == EOF) break;
+    while (!termina) {
+        FD_ZERO(&fds);
+        FD_SET(0, &fds);
+        FD_SET(feed_pipe, &fds);
 
-        if (strcmp(cmd, "msg") == 0) {
-            if (envia_msg(man_pipe_log, feed_pipe)) {
+        if(linha_cmd) {
+            printf("\n%s CMD> ", argv[1]);
+            fflush(stdout);
+        }
 
-            }
+        s = select(feed_pipe + 1, &fds, NULL, NULL, NULL);
+        if (s < 0) {
+            perror("\n[ERRO] Select falhou");
             continue;
         }
 
-        if (strcmp(cmd, "quit") == 0) {
-            RESPOSTA r;
-            strcpy(r.str, "QUIT");
-            write(feed_pipe, &r, sizeof(RESPOSTA));
-            break;
+        if (s > 0) {
+            if (FD_ISSET(0, &fds)) {
+                if (scanf("%s", cmd) == EOF) break;
+
+                if (strcmp(cmd, "msg") == 0) {
+                    if (envia_msg(man_pipe, feed_pipe)) {
+                        printf("[INFO] Mensagem enviada com sucesso.\n");
+                    } else {
+                        printf("[ERRO] Falha ao enviar a mensagem. Tente novamente.\n");
+                    }
+                    continue;
+                }
+
+                if (strcmp(cmd, "exit") == 0) {
+                    RESPOSTA r;
+                    r.pid = getpid();
+                    strcpy(r.str, "EXIT");
+
+                    PEDIDO p;
+                    p.tipo = 3;
+                    p.r = r;
+
+                    int tam = write(man_pipe, &p, sizeof(PEDIDO));
+                    if (tam < 0) {
+                        printf("\n[ERRO] Falha ao sair. Tente novamente.\n");
+                    } else {
+                        printf("[INFO] Saindo do programa...\n");
+                        linha_cmd = false;
+                    }
+                    continue;
+                }
+
+                printf("[AVISO] Comando não reconhecido. Comandos disponíveis:\n");
+                printf("  - msg: Envia uma mensagem\n");
+                printf("  - exit: Encerra o cliente\n");
+            }
+
+            if (FD_ISSET(feed_pipe, &fds)) {
+                PEDIDO p;
+                int n = read(feed_pipe, &p, sizeof(PEDIDO));
+                if (n != sizeof(PEDIDO)) {
+                    printf("\n[FEED] Erro ao ler o PEDIDO do servidor.\n");
+                    continue;
+                }
+
+                switch (p.tipo) {
+                    case 3:
+                        if (strcmp(p.r.str, "CLOSE") == 0) {
+                            printf("\n[FEED] O MANAGER encerrou. Fechando o cliente...\n");
+                            termina = true;
+                            break;
+                        }
+                        if (strcmp(p.r.str, "REMOVE") == 0) {
+                            printf("\n[FEED] Você foi expulso. Encerrando o cliente...\n");
+                            termina = true;
+                            break;
+                        }
+                        if (strcmp(p.r.str, "EXIT") == 0) {
+                            printf("\n[FEED] Encerrando o cliente...\n");
+                            termina = true;
+                            break;
+                        }
+                        break;
+
+                    default:
+                        printf("\n[FEED] Tipo de mensagem não reconhecido (%d). Ignorando...\n", p.tipo);
+                        break;
+                }
+            }
         }
     }
+
+
     // FIM LOOP
 
-    // AGUARDA A THREAD_SERVER TERMINAR
-    pthread_join(thread_server, NULL);
 
     // FECHA OS PIPES E APAGA OS FIFOS
     close(feed_pipe);
-    close(man_pipe_log);
+    close(man_pipe);
     unlink(fifo_feed);
 
     printf("\nFIM FEED...\n");
