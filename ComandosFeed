@@ -1,0 +1,29 @@
+1. topics -> {FEITO}
+
+2. msg <topico> <duração> <mensagem> -> {IMPLEMENTADO MAS NÃO RECEBE A MENSAGEM AO MESMO TEMPO QUE O COMANDO}
+
+3. subscribe <topico> {NAO IMPLEMENTADO}
+
+4. unsubscribe <topico> {NAO IMPLEMENTADO}
+
+5. exit -> FEITO
+
+6. Notificação de eventos (ações automáticas no feed):
+
+	
+   {FEITO}
+   - Mensagem recebida: Quando uma mensagem é enviada para um tópico subscrito, ela aparece no terminal:  
+
+     [futebol] João: Que jogada incrível!
+
+   {NAO IMPLEMENTADO}
+   - Tópico bloqueado/desbloqueado: Quando o administrador bloqueia ou desbloqueia um tópico subscrito:  
+     
+     Notificação: O tópico "futebol" foi bloqueado pelo administrador.
+     Notificação: O tópico "futebol" foi desbloqueado pelo administrador.
+     
+   {FEITO}
+   - Expulsão do utilizador: Se o administrador remover o utilizador da plataforma:  
+
+   {FEITO}
+   - Encerramento da plataforma: Se o administrador encerrar a plataforma:  
