@@ -32,7 +32,7 @@ typedef struct {
 
 typedef struct {
     int pid;
-    char str[TAM_MSG];
+    char str[TAM_TOPICO * MAX_TOPICS];
 }RESPOSTA;
 
 typedef struct {
