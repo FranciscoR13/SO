@@ -2,9 +2,9 @@
 
 2. msg <topico> <duração> <mensagem> -> {IMPLEMENTADO MAS NÃO RECEBE A MENSAGEM AO MESMO TEMPO QUE O COMANDO}
 
-3. subscribe <topico> {NAO IMPLEMENTADO}
+3. subscribe <topico> {FEITO}
 
-4. unsubscribe <topico> {NAO IMPLEMENTADO}
+4. unsubscribe <topico> {FEITO}
 
 5. exit -> FEITO
 
