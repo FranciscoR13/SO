@@ -132,7 +132,7 @@ void *recebe_pedidos(void *data) {
                     strncpy(d->topicos[d->nTopicos].mensagens[0].corpo_msg, p.m.corpo_msg, TAM_MSG);
                     d->topicos[d->nTopicos].mensagens[0].duracao = p.m.duracao;
                     d->topicos[d->nTopicos].nMsgs = 1;
-                    d->topicos[d->nTopicos].subescritos_pid[d->topicos[d->nTopicos].nSubs++] = p.m.pid;
+                    d->topicos[d->nTopicos].subscritos_pid[d->topicos[d->nTopicos].nSubs++] = p.m.pid;
                     d->nTopicos++;
                 } else if (!topico_encontrado) {
                     printf("[AVISO] Número máximo de tópicos atingido. Mensagem descartada.\n");
@@ -190,8 +190,8 @@ void *recebe_pedidos(void *data) {
 
                                 for (int j = i; j < d->nTopicos - 1; j++) {
                                     for(int k = 0; k < d->topicos[j].nSubs; k++) {
-                                        if(d->topicos[j].subescritos_pid[k] == pf.r.pid) {
-                                            d->topicos[j].subescritos_pid[k] = d->topicos[j].subescritos_pid[k + 1];
+                                        if(d->topicos[j].subscritos_pid[k] == pf.r.pid) {
+                                            d->topicos[j].subscritos_pid[k] = d->topicos[j].subscritos_pid[k + 1];
                                         }
                                     }
                                 }
@@ -210,6 +210,75 @@ void *recebe_pedidos(void *data) {
                     pthread_mutex_unlock(d->ptrinco);
                 }
                 break;
+            }
+            case 4: {
+
+               pthread_mutex_lock(d->ptrinco);
+
+                bool topico_encontrado = false;
+                // Verifica se o tópico existe
+                for (int i = 0; i < d->nTopicos; i++) {
+                    if (strcmp(p.t.nome_topico, d->topicos[i].nome_topico) == 0) {
+                        topico_encontrado = true;
+
+                        // Verifica se o usuário já está inscrito
+                        bool ja_inscrito = false;
+                        for (int j = 0; j < d->topicos[i].nSubs; j++) {
+                            if (d->topicos[i].subscritos_pid[j] == p.t.upid) {
+                                ja_inscrito = true;
+                                break;
+                            }
+                        }
+
+                        // Se não estiver inscrito, adiciona à lista de inscritos
+                        if (!ja_inscrito && d->topicos[i].nSubs < MAX_USERS) {
+                            d->topicos[i].subscritos_pid[d->topicos[i].nSubs++] = p.t.upid;
+                        }
+
+                        break;
+                    }
+                }
+
+
+
+                pthread_mutex_unlock(d->ptrinco);
+                break;
+
+            }
+            case 5: {
+                pthread_mutex_lock(d->ptrinco);
+
+            for (int i = 0; i < d->nTopicos; i++) {
+                if (strcmp(p.t.nome_topico, d->topicos[i].nome_topico) == 0) {
+                    bool usuario_encontrado = false;
+
+                    // Procura o usuário na lista de inscritos e remove
+                    for (int j = 0; j < d->topicos[i].nSubs; j++) {
+                        if (d->topicos[i].subscritos_pid[j] == p.t.upid) {
+                            usuario_encontrado = true;
+
+                            // Remove o usuário da lista de inscritos
+                            for (int k = j; k < d->topicos[i].nSubs - 1; k++) {
+                                d->topicos[i].subscritos_pid[k] = d->topicos[i].subscritos_pid[k + 1];
+                            }
+
+                            d->topicos[i].nSubs--; // Decrementa o número de inscritos
+                            break;
+                        }
+                    }
+
+                    if (!usuario_encontrado) {
+                        printf("[AVISO] Usuário não encontrado para cancelar a inscrição no tópico %s\n", p.t.nome_topico);
+                    }
+
+                    break;
+                }
+            }
+
+            pthread_mutex_unlock(d->ptrinco);
+            break;
+
+
             }
 
             default:
@@ -259,7 +328,7 @@ void mostra_subs(DATA *d, char nomet[]) {
 
 
                 for (int k = 0; k < d->nUsers; k++) {
-                    if (d->topicos[i].subescritos_pid[j] == d->users_pids[k]) {
+                    if (d->topicos[i].subscritos_pid[j] == d->users_pids[k]) {
                         strcpy(nome_sub, d->users_names[k]);
 
                         printf(" %d: %s \n", j + 1, nome_sub);
@@ -282,7 +351,7 @@ void mostra_msgs(DATA *d, char nomet[]) {
         if (strcmp(d->topicos[i].nome_topico, nomet) == 0) {
             for (int j = 0; j < d->topicos[i].nMsgs; j++) {
                 for (int k = 0; k < d->nUsers; k++) {
-                    if (d->topicos[i].subescritos_pid[j] == d->users_pids[k]) {
+                    if (d->topicos[i].subscritos_pid[j] == d->users_pids[k]) {
                         printf(" %d. %s (%d segundos restantes): %s\n",
                                j + 1, d->users_names[k],
                                d->topicos[i].mensagens[j].duracao,
@@ -312,6 +381,8 @@ void mostra_topicos(DATA *d) {
     }
 }
 
+
+
 int main(int argc, char *argv[]) {
     if (argc != 1) {
         return 1;
@@ -334,8 +405,15 @@ int main(int argc, char *argv[]) {
         data.topicos[i].nMsgs = 0;
         data.topicos[i].nSubs = 0;
         data.topicos[i].bloqueado = 0;
+        for (int j = 0; j < MAX_USERS; j++)
+        {
+            data.topicos[i].subscritos_pid[j] = 0;
+        }
+        
     }
     // FIM DATA
+
+   
 
     // MENSAGENS INICIAIS
     printf("INICIO MANAGER...\n");
@@ -344,6 +422,8 @@ int main(int argc, char *argv[]) {
     // THREAD PEDIDOS
     pthread_t thread_pedidos;
     pthread_create(&thread_pedidos, NULL, recebe_pedidos, &data);
+    
+    
     //...
 
     // CICLO PRINCIPAL
