@@ -51,8 +51,8 @@ typedef struct
 
     MENSAGEM mensagens[MAX_MSG_PER];
     int nMsgs;
-
-    int subescritos_pid[MAX_USERS];
+    int upid;
+    int subscritos_pid[MAX_USERS];
     int nSubs;
 
 }TOPICO;
@@ -63,6 +63,7 @@ typedef struct {
         LOGIN l;
         MENSAGEM m;
         RESPOSTA r;
+        TOPICO t;
     };
 }PEDIDO;
 
@@ -85,3 +86,4 @@ typedef struct {
     pthread_mutex_t *ptrinco;
 
 }DATA;
+
