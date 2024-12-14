@@ -127,19 +127,7 @@ bool envia_pedido(int man_pipe, int feed_pipe, int tipo) {
             return false;
         }
 
-        /*
-        // Aguarda a resposta do servidor
-        tam = read(feed_pipe, &r, sizeof(RESPOSTA));
-        if (tam < 0) {
-            perror("[ERRO] Falha ao ler a resposta do servidor");
-            return false;
-        } else if (tam != sizeof(RESPOSTA)) {
-            fprintf(stderr, "[ERRO] Resposta incompleta do servidor\n");
-            return false;
-        }
 
-        printf("[RESPOSTA DO SERVIDOR]: %s\n", r.str);
-        */
 
         return true;
     }
@@ -168,9 +156,83 @@ bool envia_pedido(int man_pipe, int feed_pipe, int tipo) {
         return true;
     }
 
+    if (tipo == 4)
+    {
+        TOPICO t;
+        RESPOSTA r;
+        strcpy(r.str, "subscrever");
+
+        
+
+        // Solicita o tópico ao usuário
+        printf("\nTOPICO: ");
+        fflush(stdout);
+        if (fgets(topic, TAM_TOPICO, stdin) == NULL) {
+            perror("[ERRO] Falha ao ler o tópico");
+            return false;
+        }
+        topic[strcspn(topic, "\n")] = '\0'; // Remove o '\n'
+
+        if (strlen(topic) == 0) {
+            printf("[AVISO] Tópico não pode estar vazio!\n");
+            return false;
+        }
+
+        strcpy(t.nome_topico, topic);
+        t.upid = getpid();
+
+        p.tipo = 4;
+
+        p.t = t;
+
+        tam =write(man_pipe, &p, sizeof(PEDIDO));
+
+        return true;
+
+    }
+
+    if (tipo == 5)
+    {
+        TOPICO t;
+        RESPOSTA r;
+        strcpy(r.str, "cancelarsub");
+
+        
+
+        // Solicita o tópico ao usuário
+        printf("\nTOPICO: ");
+        fflush(stdout);
+        if (fgets(topic, TAM_TOPICO, stdin) == NULL) {
+            perror("[ERRO] Falha ao ler o tópico");
+            return false;
+        }
+        topic[strcspn(topic, "\n")] = '\0'; // Remove o '\n'
+
+        if (strlen(topic) == 0) {
+            printf("[AVISO] Tópico não pode estar vazio!\n");
+            return false;
+        }
+
+        strcpy(t.nome_topico, topic);
+        t.upid = getpid();
+
+        p.tipo = 5;
+
+        p.t = t;
+
+        tam =write(man_pipe, &p, sizeof(PEDIDO));
+
+        return true;
+
+    }
+    
+
 
     return false;
 }
+
+
+
 
 
 // MAIN
@@ -273,6 +335,32 @@ int main(int argc, char *argv[]) {
                     continue;
                 }
 
+                if (strcmp(cmd, "subscrever") == 0)
+                {
+                    if (envia_pedido(man_pipe, feed_pipe, 4))
+                    {
+                        printf("[INFO] Topico subscrito com sucesso.\n");
+                    } else
+                    {
+                        printf("[ERRO] Falha ao subscrever no topico. Tente novamente.\n");
+                    }
+                    continue;
+                    
+                }
+                
+                if (strcmp(cmd, "cancelarsub") == 0)
+                {
+                    if (envia_pedido(man_pipe, feed_pipe, 5))
+                    {
+                        printf("[INFO] Deixaste de seguir o topico com sucesso.\n");
+                    } else
+                    {
+                        printf("[ERRO] Falha ao deixar de seguir o topico. Tente novamente.\n");
+                    }
+                    continue;
+                    
+                }
+
                 if (strcmp(cmd, "exit") == 0) {
                     RESPOSTA r;
                     r.pid = getpid();
@@ -294,6 +382,7 @@ int main(int argc, char *argv[]) {
 
                 printf("[AVISO] Comando não reconhecido. Comandos disponíveis:\n");
                 printf("  - msg: Envia uma mensagem\n");
+                printf("  - subscrever: Subscreve em um topico.\n");
                 printf("  - exit: Encerra o cliente\n");
             }
 
