@@ -160,7 +160,7 @@ bool envia_pedido(int man_pipe, int feed_pipe, int tipo) {
     {
         TOPICO t;
         RESPOSTA r;
-        strcpy(r.str, "subscrever");
+        strcpy(r.str, "subscribe");
 
         
 
@@ -195,7 +195,7 @@ bool envia_pedido(int man_pipe, int feed_pipe, int tipo) {
     {
         TOPICO t;
         RESPOSTA r;
-        strcpy(r.str, "cancelarsub");
+        strcpy(r.str, "unsubscribe");
 
         
 
@@ -335,7 +335,7 @@ int main(int argc, char *argv[]) {
                     continue;
                 }
 
-                if (strcmp(cmd, "subscrever") == 0)
+                if (strcmp(cmd, "subscribe") == 0)
                 {
                     if (envia_pedido(man_pipe, feed_pipe, 4))
                     {
@@ -348,7 +348,7 @@ int main(int argc, char *argv[]) {
                     
                 }
                 
-                if (strcmp(cmd, "cancelarsub") == 0)
+                if (strcmp(cmd, "unsubscribe") == 0)
                 {
                     if (envia_pedido(man_pipe, feed_pipe, 5))
                     {
@@ -382,7 +382,9 @@ int main(int argc, char *argv[]) {
 
                 printf("[AVISO] Comando não reconhecido. Comandos disponíveis:\n");
                 printf("  - msg: Envia uma mensagem\n");
-                printf("  - subscrever: Subscreve em um topico.\n");
+                printf("  - subscribe: Subscreve em um topico.\n");
+                printf("  - unsubscribe: Cancela a subscricão em um topico.\n");
+                printf("  - topics: Mostra todos os topicos disponiveis.\n");
                 printf("  - exit: Encerra o cliente\n");
             }
 
