@@ -45,7 +45,7 @@ typedef struct {
 typedef struct
 {
     char nome_topico[TAM];
-    int bloqueado; // 0- desbloqueado !0-bloqueado
+    bool bloqueado; 
 
     //char msgs_persistentes[MAX_MSG_PER][TAM_MSG];// 5 mensagens com 300 de comprimento
 
