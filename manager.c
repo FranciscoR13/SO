@@ -110,21 +110,24 @@ void *recebe_pedidos(void *data) {
                 pthread_mutex_lock(d->ptrinco);
                 bool topico_encontrado = false;
 
-                // VERIFICA SE O TÓPICO EXISTE
                 for (int i = 0; i < d->nTopicos; i++) {
-                    if (strcmp(d->topicos[i].nome_topico, p.m.topico) == 0) {
+                    if (strcmp(d->topicos[i].nome_topico, p.m.topico) == 0) { // Verifica se o tópico existe
                         topico_encontrado = true;
-
-                        if (d->topicos[i].nMsgs < MAX_MSG_PER) {
-                            strncpy(d->topicos[i].mensagens[d->topicos[i].nMsgs].corpo_msg, p.m.corpo_msg, TAM_MSG);
-                            d->topicos[i].mensagens[d->topicos[i].nMsgs].duracao = p.m.duracao;
-                            d->topicos[i].nMsgs++;
+                        if (!d->topicos[i].bloqueado) { // Verifica se o tópico não está bloqueado
+                            if (d->topicos[i].nMsgs < MAX_MSG_PER) {
+                                strncpy(d->topicos[i].mensagens[d->topicos[i].nMsgs].corpo_msg, p.m.corpo_msg, TAM_MSG);
+                                d->topicos[i].mensagens[d->topicos[i].nMsgs].duracao = p.m.duracao;
+                                d->topicos[i].nMsgs++;
+                            } else {
+                                printf("[AVISO] Limite de mensagens por tópico atingido. Mensagem descartada.\n");
+                            }
                         } else {
-                            printf("[AVISO] Limite de mensagens por tópico atingido. Mensagem descartada.\n");
+                            printf("[AVISO] O tópico está bloqueado. Mensagem descartada.\n");
                         }
-                        break;
+                        break; // Sai do loop ao encontrar o tópico
                     }
                 }
+
 
                 // SE O TÓPICO NÃO EXISTIR, CRIA UM NOVO
                 if (!topico_encontrado && d->nTopicos < MAX_TOPICS) {
@@ -152,7 +155,7 @@ void *recebe_pedidos(void *data) {
                     char topicos[size];
                     bzero(topicos, size);
                     for(int i=0; i<d->nTopicos; i++) {
-                        strcat(topicos, d->topicos->nome_topico);
+                        strcat(topicos, d->topicos[i].nome_topico);
                         strcat(topicos, " - ");
                     }
                     pthread_mutex_unlock(d->ptrinco);
@@ -341,30 +344,52 @@ void mostra_subs(DATA *d, char nomet[]) {
     pthread_mutex_unlock(d->ptrinco);
 }
 
-// MOSTRA OS USERNAMES E OS RESPETIVOS PIDS DE TODOS
 void mostra_msgs(DATA *d, char nomet[]) {
     pthread_mutex_lock(d->ptrinco);
-    printf("\nTOPICO: %s\n", d->topicos->nome_topico);
 
+    printf("\nTOPICO: %s\n", nomet);
+
+    bool topico_encontrado = false;
 
     for (int i = 0; i < d->nTopicos; i++) {
         if (strcmp(d->topicos[i].nome_topico, nomet) == 0) {
+            topico_encontrado = true;
+
+            // Itera sobre todas as mensagens do tópico
             for (int j = 0; j < d->topicos[i].nMsgs; j++) {
+                bool user_encontrado = false;
+
+                // Procura o PID correspondente ao usuário
                 for (int k = 0; k < d->nUsers; k++) {
-                    if (d->topicos[i].subscritos_pid[j] == d->users_pids[k]) {
-                        printf(" %d. %s (%d segundos restantes): %s\n",
-                               j + 1, d->users_names[k],
+                    if (d->users_pids[k] == d->topicos[i].subscritos_pid[0]) {
+                        printf("%d. %s (%d segundos restantes): %s\n",
+                               j + 1,
+                               d->users_names[k],
                                d->topicos[i].mensagens[j].duracao,
                                d->topicos[i].mensagens[j].corpo_msg);
+                        user_encontrado = true;
                         break;
                     }
+                }
+
+                if (!user_encontrado) {
+                    printf("%d. Usuário desconhecido (%d segundos restantes): %s\n",
+                           j + 1,
+                           d->topicos[i].mensagens[j].duracao,
+                           d->topicos[i].mensagens[j].corpo_msg);
                 }
             }
             break;
         }
     }
+
+    if (!topico_encontrado) {
+        printf("[AVISO] Tópico '%s' não encontrado.\n", nomet);
+    }
+
     pthread_mutex_unlock(d->ptrinco);
 }
+
 
 
 // MOSTRA OS USERNAMES E OS RESPETIVOS PIDS DE TODOS
@@ -379,6 +404,48 @@ void mostra_topicos(DATA *d) {
         printf(" %d: %s \n", i + 1, d->topicos[i].nome_topico);
         pthread_mutex_unlock(d->ptrinco);
     }
+}
+
+//BLOQUEIA UM TOPICO
+void bloqueia_topico(DATA *d, char topico[TAM]){
+
+    pthread_mutex_lock(d->ptrinco);
+
+    for (int i = 0; i < d->nTopicos; i++)
+    {
+        if (strcmp(d->topicos[i].nome_topico, topico) == 0 )
+        {
+            d->topicos[i].bloqueado = true;
+            printf("[AVISO] O topico %s foi bloqueado. \n", topico);
+        } else
+        {
+            printf("[AVISO] Nao foi possivel encontrar o topico. \n");
+        }
+        
+        
+    }
+    pthread_mutex_unlock(d->ptrinco);
+}
+
+void desbloqueia_topico(DATA *d, char topico[TAM]) {
+    pthread_mutex_lock(d->ptrinco);
+
+    bool topico_encontrado = false;
+
+    for (int i = 0; i < d->nTopicos; i++) {
+        if (strcmp(d->topicos[i].nome_topico, topico) == 0) {
+            d->topicos[i].bloqueado = false;
+            printf("[AVISO] O tópico '%s' foi desbloqueado.\n", topico);
+            topico_encontrado = true;
+            break; // Sai do loop ao encontrar o tópico
+        }
+    }
+
+    if (!topico_encontrado) {
+        printf("[AVISO] Não foi possível encontrar o tópico '%s'.\n", topico);
+    }
+
+    pthread_mutex_unlock(d->ptrinco);
 }
 
 
@@ -404,7 +471,7 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < MAX_TOPICS; i++) {
         data.topicos[i].nMsgs = 0;
         data.topicos[i].nSubs = 0;
-        data.topicos[i].bloqueado = 0;
+        data.topicos[i].bloqueado = false;
         for (int j = 0; j < MAX_USERS; j++)
         {
             data.topicos[i].subscritos_pid[j] = 0;
@@ -444,6 +511,37 @@ int main(int argc, char *argv[]) {
             mostra_topicos(&data);
             continue;
         }
+
+        if (strcmp(cmd, "block") == 0)
+        {
+            printf("Nome Topico: ");
+            fflush(stdout);
+            char topico[TAM];
+            scanf("%s", topico);
+            bloqueia_topico(&data, topico);
+
+            // Limpa buffers de entrada para evitar resíduos
+            int c;
+            while ((c = getchar()) != '\n' && c != EOF);
+
+            continue;
+        }
+
+        if (strcmp(cmd, "unlock") == 0)
+        {
+            printf("Nome Topico: ");
+            fflush(stdout);
+            char topico[TAM];
+            scanf("%s", topico);
+            desbloqueia_topico(&data, topico);
+
+            // Limpa buffers de entrada para evitar resíduos
+            int c;
+            while ((c = getchar()) != '\n' && c != EOF);
+
+            continue;
+        }
+        
 
         if (strcmp(cmd, "subs") == 0) {
             printf("Nome Topico: ");
