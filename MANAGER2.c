@@ -1,7 +1,7 @@
 #include "includes.h"
 
-// ENVIA UMA "RESPOSTA" A UM USER
-bool envia_info(const int pid, PEDIDO *p) {
+// ENVIA UM PEDIDO A UM USER
+bool envia_pedido(const int pid, PEDIDO *p) {
     // Variáveis auxiliares
     char fifo_feed[TAM];
     int feed_pipe, tam;
@@ -131,7 +131,7 @@ void *recebe_pedidos(void *data) {
                     strncpy(d->topicos[d->nTopicos].nome_topico, p.m.topico, TAM_TOPICO);
                     strncpy(d->topicos[d->nTopicos].mensagens[0].corpo_msg, p.m.corpo_msg, TAM_MSG);
                     d->topicos[d->nTopicos].mensagens[0].duracao = p.m.duracao;
-                    d->topicos[d->nTopicos].nMsgs = 1;
+                    d->topicos[d->nTopicos].nMsgs++;
                     d->topicos[d->nTopicos].subscritos_pid[d->topicos[d->nTopicos].nSubs++] = p.m.pid;
                     d->nTopicos++;
                 } else if (!topico_encontrado) {
@@ -144,15 +144,15 @@ void *recebe_pedidos(void *data) {
             }
 
             case 3: {
-
                 // RESPOSTA
                 if (strcmp(p.r.str, "TOPICS") == 0) {
-                    pthread_mutex_lock(d->ptrinco);
                     int size = MAX_TOPICS * TAM_TOPICO;
                     char topicos[size];
                     bzero(topicos, size);
-                    for(int i=0; i<d->nTopicos; i++) {
-                        strcat(topicos, d->topicos->nome_topico);
+
+                    pthread_mutex_lock(d->ptrinco);
+                    for (int i = 0; i < d->nTopicos; i++) {
+                        strcat(topicos, d->topicos[i].nome_topico);
                         strcat(topicos, " - ");
                     }
                     pthread_mutex_unlock(d->ptrinco);
@@ -161,70 +161,29 @@ void *recebe_pedidos(void *data) {
 
                     RESPOSTA r;
                     r.pid = getpid();
-                    strcpy(r.str,topicos);
+                    strcpy(r.str, topicos);
 
                     PEDIDO pt;
                     pt.tipo = 3;
                     pt.r = r;
 
-                    envia_info(p.r.pid, &pt);
+                    envia_pedido(p.r.pid, &pt);
 
                     break;
                 }
-
-                if (strcmp(p.r.str, "CLOSE") == 0) {
-                    pthread_mutex_lock(d->ptrinco);
-                    d->pedidos_on = false;
-                    pthread_mutex_unlock(d->ptrinco);
-                    break;
-                }
-
-                if (strcmp(p.r.str, "EXIT") == 0) {
-                    PEDIDO pf = {.tipo = 3};
-                    strcpy(pf.r.str, "EXIT");
-
-                    pthread_mutex_lock(d->ptrinco);
-                    for (int i = d->nUsers - 1; i >= 0; i--) {
-                        if(d->users_pids[i] == p.r.pid) {
-                            if (envia_info(d->users_pids[i], &pf)) {
-
-                                for (int j = i; j < d->nTopicos - 1; j++) {
-                                    for(int k = 0; k < d->topicos[j].nSubs; k++) {
-                                        if(d->topicos[j].subscritos_pid[k] == pf.r.pid) {
-                                            d->topicos[j].subscritos_pid[k] = d->topicos[j].subscritos_pid[k + 1];
-                                        }
-                                    }
-                                }
-
-                                for (int j = i; j < d->nUsers - 1; j++) {
-                                    d->users_pids[j] = d->users_pids[j + 1];
-                                    strncpy(d->users_names[j], d->users_names[j + 1], TAM_NOME);
-                                }
-                                d->nUsers--;
-                            } else {
-                                printf("[ERRO] Não foi possível enviar a mensagem 'EXIT' para o usuário %d\n",
-                                       d->users_pids[i]);
-                            }
-                        }
-                    }
-                    pthread_mutex_unlock(d->ptrinco);
-                }
-                break;
             }
+
             case 4: {
+                pthread_mutex_lock(d->ptrinco);
 
-               pthread_mutex_lock(d->ptrinco);
-
-                bool topico_encontrado = false;
                 // Verifica se o tópico existe
                 for (int i = 0; i < d->nTopicos; i++) {
-                    if (strcmp(p.t.nome_topico, d->topicos[i].nome_topico) == 0) {
-                        topico_encontrado = true;
+                    if (strcmp(p.r.str, d->topicos[i].nome_topico) == 0) {
 
                         // Verifica se o usuário já está inscrito
                         bool ja_inscrito = false;
                         for (int j = 0; j < d->topicos[i].nSubs; j++) {
-                            if (d->topicos[i].subscritos_pid[j] == p.t.upid) {
+                            if (d->topicos[i].subscritos_pid[j] == p.r.pid) {
                                 ja_inscrito = true;
                                 break;
                             }
@@ -232,7 +191,7 @@ void *recebe_pedidos(void *data) {
 
                         // Se não estiver inscrito, adiciona à lista de inscritos
                         if (!ja_inscrito && d->topicos[i].nSubs < MAX_USERS) {
-                            d->topicos[i].subscritos_pid[d->topicos[i].nSubs++] = p.t.upid;
+                            d->topicos[i].subscritos_pid[d->topicos[i].nSubs++] = p.r.pid;
                         }
 
                         break;
@@ -240,45 +199,79 @@ void *recebe_pedidos(void *data) {
                 }
 
 
-
                 pthread_mutex_unlock(d->ptrinco);
                 break;
-
             }
             case 5: {
                 pthread_mutex_lock(d->ptrinco);
 
-            for (int i = 0; i < d->nTopicos; i++) {
-                if (strcmp(p.t.nome_topico, d->topicos[i].nome_topico) == 0) {
-                    bool usuario_encontrado = false;
+                for (int i = 0; i < d->nTopicos; i++) {
+                    if (strcmp(p.r.str, d->topicos[i].nome_topico) == 0) {
+                        bool usuario_encontrado = false;
 
-                    // Procura o usuário na lista de inscritos e remove
-                    for (int j = 0; j < d->topicos[i].nSubs; j++) {
-                        if (d->topicos[i].subscritos_pid[j] == p.t.upid) {
-                            usuario_encontrado = true;
+                        // Procura o usuário na lista de inscritos e remove
+                        for (int j = 0; j < d->topicos[i].nSubs; j++) {
+                            if (d->topicos[i].subscritos_pid[j] == p.r.pid) {
+                                usuario_encontrado = true;
 
-                            // Remove o usuário da lista de inscritos
-                            for (int k = j; k < d->topicos[i].nSubs - 1; k++) {
-                                d->topicos[i].subscritos_pid[k] = d->topicos[i].subscritos_pid[k + 1];
+                                // Remove o usuário da lista de inscritos
+                                for (int k = j; k < d->topicos[i].nSubs - 1; k++) {
+                                    d->topicos[i].subscritos_pid[k] = d->topicos[i].subscritos_pid[k + 1];
+                                }
+
+                                d->topicos[i].nSubs--; // Decrementa o número de inscritos
+                                break;
                             }
-
-                            d->topicos[i].nSubs--; // Decrementa o número de inscritos
-                            break;
                         }
-                    }
 
-                    if (!usuario_encontrado) {
-                        printf("[AVISO] Usuário não encontrado para cancelar a inscrição no tópico %s\n", p.t.nome_topico);
-                    }
+                        if (!usuario_encontrado) {
+                            printf("[AVISO] Usuário não encontrado para cancelar a inscrição no tópico [%d]\n", p.r.pid);
+                        }
 
-                    break;
+                        break;
+                    }
                 }
+
+                pthread_mutex_unlock(d->ptrinco);
+                break;
             }
 
-            pthread_mutex_unlock(d->ptrinco);
-            break;
+            case 7: {
+                PEDIDO pf = {.tipo = 3};
+                strcpy(pf.r.str, "EXIT");
 
+                pthread_mutex_lock(d->ptrinco);
+                for (int i = d->nUsers - 1; i >= 0; i--) {
+                    if (d->users_pids[i] == p.r.pid) {
+                        if (envia_pedido(d->users_pids[i], &pf)) {
+                            for (int j = i; j < d->nTopicos - 1; j++) {
+                                for (int k = 0; k < d->topicos[j].nSubs; k++) {
+                                    if (d->topicos[j].subscritos_pid[k] == pf.r.pid) {
+                                        d->topicos[j].subscritos_pid[k] = d->topicos[j].subscritos_pid[k + 1];
+                                    }
+                                }
+                            }
 
+                            for (int j = i; j < d->nUsers - 1; j++) {
+                                d->users_pids[j] = d->users_pids[j + 1];
+                                strncpy(d->users_names[j], d->users_names[j + 1], TAM_NOME);
+                            }
+                            d->nUsers--;
+                        } else {
+                            printf("[ERRO] Não foi possível enviar a mensagem 'EXIT' para o usuário %d\n",
+                                   d->users_pids[i]);
+                        }
+                    }
+                }
+                pthread_mutex_unlock(d->ptrinco);
+                continue;
+            }
+
+            case 8: {
+                pthread_mutex_lock(d->ptrinco);
+                d->pedidos_on = false;
+                pthread_mutex_unlock(d->ptrinco);
+                continue;
             }
 
             default:
@@ -298,6 +291,51 @@ void *recebe_pedidos(void *data) {
 
 
 //==============RECEBE PEDIDOS=================//
+
+// Função da thread para reduzir o tempo de duração das mensagens
+void *reduz_duracao(void *data) {
+    DATA *d = (DATA *) data;
+
+    while (d->pedidos_on) {
+        // Espera 1 segundo
+        sleep(1);
+
+        // Bloqueia o acesso aos dados compartilhados
+        pthread_mutex_lock(d->ptrinco);
+
+        // Itera pelos tópicos e mensagens
+        for (int i = 0; i < d->nTopicos; i++) {
+            for (int j = 0; j < d->topicos[i].nMsgs; j++) {
+                if (d->topicos[i].mensagens[j].duracao > 0) {
+                    // Reduz a duração
+                    d->topicos[i].mensagens[j].duracao--;
+
+                    // Remove a mensagem se a duração chegar a zero
+                    if (d->topicos[i].mensagens[j].duracao == 0) {
+                        printf("\n[INFO] Mensagem '%s' no tópico '%s' expirou.\n\nADMIN CMD>",
+                               d->topicos[i].mensagens[j].corpo_msg,
+                               d->topicos[i].nome_topico);
+                        fflush(stdout);
+                        // Remove a mensagem e ajusta o array
+                        for (int k = j; k < d->topicos[i].nMsgs - 1; k++) {
+                            d->topicos[i].mensagens[k] = d->topicos[i].mensagens[k + 1];
+                        }
+
+                        // Reduz o número de mensagens no tópico
+                        d->topicos[i].nMsgs--;
+                        j--; // Ajusta o índice para verificar a nova mensagem na posição
+                    }
+                }
+            }
+        }
+
+        // Desbloqueia o mutex
+        pthread_mutex_unlock(d->ptrinco);
+    }
+
+    printf("[THREAD] Thread de redução de duração de mensagens encerrada.\n");
+    return NULL;
+}
 
 
 // MOSTRA OS USERNAMES E OS RESPETIVOS PIDS DE TODOS
@@ -381,8 +419,6 @@ void mostra_topicos(DATA *d) {
     }
 }
 
-
-
 int main(int argc, char *argv[]) {
     if (argc != 1) {
         return 1;
@@ -405,15 +441,8 @@ int main(int argc, char *argv[]) {
         data.topicos[i].nMsgs = 0;
         data.topicos[i].nSubs = 0;
         data.topicos[i].bloqueado = 0;
-        for (int j = 0; j < MAX_USERS; j++)
-        {
-            data.topicos[i].subscritos_pid[j] = 0;
-        }
-        
     }
     // FIM DATA
-
-   
 
     // MENSAGENS INICIAIS
     printf("INICIO MANAGER...\n");
@@ -422,9 +451,12 @@ int main(int argc, char *argv[]) {
     // THREAD PEDIDOS
     pthread_t thread_pedidos;
     pthread_create(&thread_pedidos, NULL, recebe_pedidos, &data);
-    
-    
     //...
+
+    // THREAD PARA REDUZIR O TEMPO DE DURAÇÃO DAS MENSAGENS
+    pthread_t thread_duracao;
+    pthread_create(&thread_duracao, NULL, reduz_duracao, &data);
+
 
     // CICLO PRINCIPAL
     char cmd[TAM];
@@ -487,7 +519,7 @@ int main(int argc, char *argv[]) {
 
             // Laço de expulsão
             for (int i = n - 1; i >= 0; i--) {
-                if (envia_info(data.users_pids[i], &pf)) {
+                if (envia_pedido(data.users_pids[i], &pf)) {
                     // Remoção do usuário em caso de sucesso
                     for (int j = i; j < data.nUsers - 1; j++) {
                         data.users_pids[j] = data.users_pids[j + 1];
@@ -519,7 +551,7 @@ int main(int argc, char *argv[]) {
             // Laço de expulsão
             pthread_mutex_lock(data.ptrinco);
             for (int i = data.nUsers - 1; i >= 0; i--) {
-                if (envia_info(data.users_pids[i], &pf)) {
+                if (envia_pedido(data.users_pids[i], &pf)) {
                     // Remoção do usuário em caso de sucesso
                     for (int j = i; j < data.nUsers - 1; j++) {
                         data.users_pids[j] = data.users_pids[j + 1];
@@ -537,7 +569,6 @@ int main(int argc, char *argv[]) {
         }
 
         if (strcmp(cmd, "close") == 0) {
-
             PEDIDO pf;
             pf.tipo = 3;
             strcpy(pf.r.str, "CLOSE");
@@ -545,7 +576,7 @@ int main(int argc, char *argv[]) {
             // AVISA OS USERS QUE VAI FECHAR
             pthread_mutex_lock(data.ptrinco);
             for (int i = data.nUsers - 1; i >= 0; i--) {
-                if (envia_info(data.users_pids[i], &pf)) {
+                if (envia_pedido(data.users_pids[i], &pf)) {
                     data.nUsers--;
                 } else {
                     printf(" NAO DEU!\n");
@@ -561,7 +592,7 @@ int main(int argc, char *argv[]) {
             strcpy(res.str, "CLOSE"); //->apenas fecha nao retira os users do data
 
             PEDIDO pm;
-            pm.tipo = 3;
+            pm.tipo = 8;
             pm.r = res;
 
             int man_pipe = open(FIFO_SERV, O_WRONLY);
@@ -574,6 +605,7 @@ int main(int argc, char *argv[]) {
             close(man_pipe);
 
             pthread_join(thread_pedidos, NULL);
+            pthread_join(thread_duracao, NULL);
         }
     } while (strcmp(cmd, "close") != 0);
 
