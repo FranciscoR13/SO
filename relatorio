@@ -1,0 +1,121 @@
+1. Objetivo da Aplicação
+A aplicação cliente-servidor desenvolvida visa gerenciar um sistema de tópicos de mensagens utilizando FIFOs para a comunicação entre o servidor e os clientes. O servidor centraliza o gerenciamento dos tópicos, enquanto os clientes podem interagir com o sistema enviando mensagens, subscrevendo tópicos e realizando o login. O uso de FIFOs permite uma comunicação eficiente e simplificada entre o servidor e múltiplos clientes simultaneamente.
+2. Arquitetura e Estruturas de Dados
+Comunicação via FIFOs
+A comunicação entre o servidor e os clientes é realizada por meio de FIFOs, permitindo uma interação síncrona e assíncrona entre o servidor e os clientes. Cada cliente possui um FIFO de feed próprio, nomeado como F_%d, onde %d representa o PID (Process ID) do cliente. O servidor, por sua vez, usa um FIFO principal de gerenciamento denominado M_PIPE.
+
+Estruturas de Dados Utilizadas
+As estruturas de dados são projetadas para armazenar informações relevantes sobre os usuários, tópicos, mensagens e pedidos.
+    • LOGIN: Armazena o PID do cliente e o nome de usuário.
+
+	
+	typedef struct {
+    		int pid;
+    		char username[TAM_NOME];
+	} LOGIN;
+
+RESPOSTA: Estrutura para armazenar o pid do cliente e uma lista de tópicos.
+	typedef struct {
+   		 int pid;
+    		char str[TAM_TOPICO * MAX_TOPICS];
+	} RESPOSTA;
+
+MENSAGEM: Estrutura que representa uma mensagem enviada em um tópico. Contém o tópico, o corpo da mensagem, duração, e o pid do remetente.
+	typedef struct {
+    		char topico[TAM_TOPICO];
+    		char corpo_msg[TAM_MSG];
+    		int duracao;
+    		int pid;
+	}MENSAGEM;
+
+TOPICO: Estrutura que representa um tópico, incluindo informações sobre bloqueio, mensagens associadas, e os clientes inscritos.
+
+	typedef struct {
+    		char nome_topico[TAM];
+    		bool bloqueado;
+    		MENSAGEM mensagens[MAX_MSG_PER];
+    		int nMsgs;
+    		int upid;
+    		int subscritos_pid[MAX_USERS];
+    		int nSubs;
+	} TOPICO;
+
+PEDIDO: Estrutura genérica para encapsular diferentes tipos de dados (login, mensagem, resposta e tópico).
+	typedef struct {
+    		int tipo;  // Tipo de estrutura
+    		union {
+        			LOGIN l;
+        			MENSAGEM m;
+        			RESPOSTA r;
+        			TOPICO t;
+    		};
+	} PEDIDO;
+
+DATA: Estrutura principal do servidor, contendo informações sobre os usuários conectados, tópicos criados, e variáveis de controle como o trincamento (mutex) e o estado de pedidos.
+
+	typedef struct {
+   		 int nUsers;
+    		int users_pids[MAX_USERS];
+    		char users_names[MAX_USERS][TAM_NOME];
+    		TOPICO topicos[MAX_TOPICS];
+    		int nTopicos;
+    		bool pedidos_on;
+    		pthread_mutex_t *ptrinco;
+	} DATA;
+.
+3. Controles e Limitações
+Para garantir o bom funcionamento do sistema, foram estabelecidos limites em várias áreas do sistema:
+    • Número máximo de usuários: 10 usuários simultâneos.
+    • Número máximo de tópicos: 20 tópicos.
+    • Número máximo de mensagens por tópico: 5 mensagens.
+    • Bloqueio de tópicos: Tópicos podem ser bloqueados, impedindo a adição de novas mensagens.
+    • Exclusão mútua (Mutex): Para garantir a segurança no acesso a dados compartilhados entre múltiplos clientes, o servidor utiliza um mutex (ptrinco).
+Essas limitações garantem a integridade do sistema e evitam sobrecarga de recursos.
+4. Funções Implementadas
+4.1 Funções no Servidor
+As funções no servidor têm como objetivo gerenciar os pedidos dos clientes, como login, envio de mensagens, criação e manipulação de tópicos.
+    1. Função envia_info
+        ◦ Objetivo: Enviar informações para um cliente específico.
+        ◦ Explicação: A função recebe o PID do cliente e um pedido (do tipo PEDIDO) e envia os dados para o cliente através de seu FIFO específico.
+    2. Função recebe_pedidos
+        ◦ Objetivo: Processar pedidos dos clientes de forma contínua.
+        ◦ Explicação: Em uma thread separada, esta função aguarda e processa os pedidos dos clientes, gerenciando diferentes tipos de pedidos como login, envio de mensagens, inscrição em tópicos, etc.
+    3. Função mostra_users
+        ◦ Objetivo: Exibir todos os usuários registrados no servidor.
+        ◦ Explicação: Itera sobre a lista de usuários e exibe seus nomes e PIDs.
+    4. Função mostra_subs
+        ◦ Objetivo: Mostrar os usuários inscritos em um tópico específico.
+        ◦ Explicação: Recebe o nome de um tópico e exibe todos os usuários que estão inscritos naquele tópico.
+    5. Função mostra_msgs
+        ◦ Objetivo: Exibir todas as mensagens de um tópico específico.
+        ◦ Explicação: Recebe o nome de um tópico e exibe todas as mensagens associadas a ele.
+    6. Função mostra_topicos
+        ◦ Objetivo: Exibir todos os tópicos disponíveis no servidor.
+        ◦ Explicação: Exibe todos os tópicos cadastrados, junto com seu status (bloqueado ou desbloqueado).
+    7. Função bloqueia_topico
+        ◦ Objetivo: Bloquear um tópico para que não receba novas mensagens.
+        ◦ Explicação: Altera o status de um tópico para "bloqueado", impedindo que novos usuários enviem mensagens para ele.
+    8. Função desbloqueia_topico
+        ◦ Objetivo: Desbloquear um tópico, permitindo que novas mensagens sejam enviadas.
+        ◦ Explicação: Permite que um tópico bloqueado seja desbloqueado, permitindo novas interações dos usuários.
+    9. Função main
+        ◦ Objetivo: Inicializa o servidor e aguarda pedidos do administrador.
+        ◦ Explicação: Inicia o servidor, gerencia a execução das threads de processamento e permite que o administrador interaja com o sistema.
+4.2 Funções no Cliente
+O cliente tem funções para realizar o login, enviar pedidos ao servidor e gerenciar as interações do usuário.
+    1. Função timeout
+        ◦ Objetivo: Lidar com o tempo limite de resposta do servidor.
+        ◦ Explicação: Chamada quando o cliente atinge o limite de tempo esperando pela resposta do servidor, indicando um erro de timeout.
+    2. Função login
+        ◦ Objetivo: Realizar o login do cliente no servidor.
+        ◦ Explicação: Envia o nome de usuário e o PID para o servidor e aguarda a resposta de sucesso ou falha do login.
+    3. Função envia_pedido
+        ◦ Objetivo: Enviar um pedido para o servidor.
+        ◦ Explicação: Dependendo do tipo de comando (enviar mensagem, subscrever/desinscrever de tópicos, etc.), esta função envia o pedido apropriado ao servidor.
+    4. Função main
+        ◦ Objetivo: Função principal do cliente.
+        ◦ Explicação: Inicializa a comunicação com o servidor, realiza o login e permite a interação contínua do usuário com o sistema, enviando e recebendo dados do servidor.
+5. Conclusão
+A aplicação cliente-servidor baseada em FIFOs proporciona uma plataforma robusta e eficiente para o gerenciamento de tópicos de mensagens. A comunicação via FIFOs é simples, porém eficaz, permitindo que o servidor gerencie múltiplos clientes e tópicos simultaneamente.
+O uso de estruturas de dados bem definidas e a implementação de mutexes garantem a integridade dos dados e a segurança no acesso a recursos compartilhados. As funções no servidor permitem gerenciar a interação dos usuários com os tópicos, incluindo a criação, envio de mensagens, inscrição e bloqueio de tópicos.
+Com esse sistema, os clientes têm uma interface simples para interação com o servidor, podendo se registrar, enviar mensagens para tópicos, e gerenciar suas inscrições de forma dinâmica. A aplicação, portanto, atende bem à proposta de gerenciar um sistema de tópicos de mensagens, mantendo uma comunicação eficiente e segura entre os clientes e o servidor.
