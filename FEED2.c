@@ -66,10 +66,6 @@ bool envia_pedido(int man_pipe, int feed_pipe, PEDIDO p) {
     int tam;
     // FIM VARIAVEIS
 
-    // Limpa buffers de entrada para evitar resíduos
-    int c;
-    while ((c = getchar()) != '\n' && c != EOF);
-
     if (p.tipo == 1) {
         // VARIAVEIS
         int tam;
@@ -145,24 +141,12 @@ bool envia_pedido(int man_pipe, int feed_pipe, PEDIDO p) {
             return false;
         }
 
-        if(strcmp(p.r.str,"TOPICS") == 0) {
-            tam = read(feed_pipe, &p, sizeof(PEDIDO));
-            if (tam != sizeof(PEDIDO)) {
-                perror("[ERRO] Falha ao enviar a mensagem ao servidor");
-                return false;
-            }
-
-            // Processa os tópicos para o formato desejado
-            char *token = strtok(p.r.str, " - "); // Divide a string original em partesfd
-            int contador = 1;
-
-            printf("\nTOPICOS:\n");
-            while (token != NULL) {
-                printf(" %d. %s\n", contador, token); // Imprime no formato "1. topico1"
-                contador++;
-                token = strtok(NULL, " - "); // Pega o próximo token
-            }
+        tam = write(feed_pipe, &p, sizeof(PEDIDO));
+        if (tam != sizeof(PEDIDO)) {
+            perror("[ERRO] Falha ao enviar a mensagem ao servidor");
+            return false;
         }
+
         return true;
 
     }
