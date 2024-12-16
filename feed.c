@@ -117,6 +117,7 @@ bool envia_pedido(int man_pipe, int feed_pipe, int tipo) {
 
         // Preenche a estrutura de mensagem
         m.pid = getpid();
+        printf("\n%d\n",m.pid);
         strncpy(m.topico, topic, sizeof(m.topico) - 1);
         m.topico[sizeof(m.topico) - 1] = '\0';
         strncpy(m.corpo_msg, msg, sizeof(m.corpo_msg) - 1);
