@@ -64,7 +64,7 @@ bool envia_pedido(int man_pipe, int feed_pipe, int tipo) {
     // VARIAVEIS
     PEDIDO p;
     char msg[TAM_MSG], topic[TAM_TOPICO];
-    int tam;
+    int duracao, tam;
     // FIM VARIAVEIS
 
     // Limpa buffers de entrada para evitar resíduos
@@ -90,6 +90,16 @@ bool envia_pedido(int man_pipe, int feed_pipe, int tipo) {
             return false;
         }
 
+        // Solicita a duração ao usuário
+        printf("DURACAO: ");
+        fflush(stdout);
+        if (scanf("%d", &duracao) != 1 || duracao <= 0) {
+            fprintf(stderr, "[ERRO] Duração inválida. Insira um valor positivo.\n");
+            return false;
+        }
+
+        while ((c = getchar()) != '\n' && c != EOF);
+
         // Solicita a mensagem ao usuário
         printf("MENSAGEM: ");
         fflush(stdout);
@@ -104,16 +114,15 @@ bool envia_pedido(int man_pipe, int feed_pipe, int tipo) {
             return false;
         }
 
+
         // Preenche a estrutura de mensagem
         m.pid = getpid();
         strncpy(m.topico, topic, sizeof(m.topico) - 1);
         m.topico[sizeof(m.topico) - 1] = '\0';
         strncpy(m.corpo_msg, msg, sizeof(m.corpo_msg) - 1);
         m.corpo_msg[sizeof(m.corpo_msg) - 1] = '\0';
+        m.duracao = duracao;
 
-        //>>>>>>>>>ALTERAR<<<<<<<<<<
-        m.duracao = 0;
-        //>>>>>>>>>ALTERAR<<<<<<<<<<
 
 
         //ESTRUTURA PEDIDO
@@ -126,7 +135,6 @@ bool envia_pedido(int man_pipe, int feed_pipe, int tipo) {
             perror("[ERRO] Falha ao enviar a mensagem ao servidor");
             return false;
         }
-
 
 
         return true;
@@ -160,9 +168,9 @@ bool envia_pedido(int man_pipe, int feed_pipe, int tipo) {
     {
         TOPICO t;
         RESPOSTA r;
-        strcpy(r.str, "subscribe");
+        strcpy(r.str, "subscrever");
 
-        
+
 
         // Solicita o tópico ao usuário
         printf("\nTOPICO: ");
@@ -195,9 +203,9 @@ bool envia_pedido(int man_pipe, int feed_pipe, int tipo) {
     {
         TOPICO t;
         RESPOSTA r;
-        strcpy(r.str, "unsubscribe");
+        strcpy(r.str, "cancelarsub");
 
-        
+
 
         // Solicita o tópico ao usuário
         printf("\nTOPICO: ");
@@ -225,7 +233,7 @@ bool envia_pedido(int man_pipe, int feed_pipe, int tipo) {
         return true;
 
     }
-    
+
 
 
     return false;
@@ -335,7 +343,7 @@ int main(int argc, char *argv[]) {
                     continue;
                 }
 
-                if (strcmp(cmd, "subscribe") == 0)
+                if (strcmp(cmd, "subscrever") == 0)
                 {
                     if (envia_pedido(man_pipe, feed_pipe, 4))
                     {
@@ -345,10 +353,10 @@ int main(int argc, char *argv[]) {
                         printf("[ERRO] Falha ao subscrever no topico. Tente novamente.\n");
                     }
                     continue;
-                    
+
                 }
-                
-                if (strcmp(cmd, "unsubscribe") == 0)
+
+                if (strcmp(cmd, "cancelarsub") == 0)
                 {
                     if (envia_pedido(man_pipe, feed_pipe, 5))
                     {
@@ -358,7 +366,7 @@ int main(int argc, char *argv[]) {
                         printf("[ERRO] Falha ao deixar de seguir o topico. Tente novamente.\n");
                     }
                     continue;
-                    
+
                 }
 
                 if (strcmp(cmd, "exit") == 0) {
@@ -382,9 +390,7 @@ int main(int argc, char *argv[]) {
 
                 printf("[AVISO] Comando não reconhecido. Comandos disponíveis:\n");
                 printf("  - msg: Envia uma mensagem\n");
-                printf("  - subscribe: Subscreve em um topico.\n");
-                printf("  - unsubscribe: Cancela a subscricão em um topico.\n");
-                printf("  - topics: Mostra todos os topicos disponiveis.\n");
+                printf("  - subscrever: Subscreve em um topico.\n");
                 printf("  - exit: Encerra o cliente\n");
             }
 
@@ -397,7 +403,13 @@ int main(int argc, char *argv[]) {
                 }
 
                 switch (p.tipo) {
+                    case 2:
+                        printf("\nTopico: %s - Mensagem: %s\n", p.m.topico, p.m.corpo_msg);
                     case 3:
+                        if (strcmp(p.r.str, "BLOQUEADO") == 0) {
+                            printf("[ERRO]\n");
+                        }
+
                         if (strcmp(p.r.str, "TOPICS") == 0) {
 
                             alarm(30);
@@ -410,7 +422,7 @@ int main(int argc, char *argv[]) {
                                 break;
                             }
 
-                            printf("==Tópicos==\n");
+                            printf("\n==Tópicos==\n");
 
                             char topicos[TAM * MAX_TOPICS];
                             strncpy(topicos, p.r.str, sizeof(topicos) - 1);
