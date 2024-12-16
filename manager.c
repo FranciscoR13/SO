@@ -136,6 +136,7 @@ void *recebe_pedidos(void *data) {
                                 d->topicos[i].mensagens[d->topicos[i].nMsgs].corpo_msg[TAM_MSG - 1] = '\0';
                                 // Garantir null-termination
                                 d->topicos[i].mensagens[d->topicos[i].nMsgs].duracao = p.m.duracao;
+                                d->topicos[i].mensagens->pid = p.m.pid;
                                 d->topicos[i].nMsgs++;
                             } else {
                                 printf("[AVISO] Limite de mensagens por tópico atingido. Mensagem descartada.\n");
@@ -178,7 +179,7 @@ void *recebe_pedidos(void *data) {
                     strncpy(d->topicos[d->nTopicos].mensagens[0].corpo_msg, p.m.corpo_msg, TAM_MSG);
                     d->topicos[d->nTopicos].mensagens[0].duracao = p.m.duracao;
                     d->topicos[d->nTopicos].nMsgs = 1;
-                    d->topicos[d->nTopicos].subscritos_pid[d->topicos[d->nTopicos].nSubs++] = p.m.pid;
+                    d->topicos[d->nTopicos].mensagens[0].pid = p.m.pid;
                     d->nTopicos++;
                 } else if (!topico_encontrado) {
                     printf("[AVISO] Número máximo de tópicos atingido. Mensagem descartada.\n");
@@ -498,8 +499,9 @@ void mostra_msgs(DATA *d, char nomet[]) {
             for (int j = 0; j < d->topicos[i].nMsgs; j++) {
                 for (int k = 0; k < d->nUsers; k++) {
                     if (d->topicos[i].subscritos_pid[j] == d->users_pids[k]) {
-                        printf(" %d. %s (%d segundos restantes): %s\n",
+                        printf(" %d. %s[%d] (%d segundos restantes): %s\n",
                                j + 1, d->users_names[k],
+                               d->topicos[i].mensagens->pid,
                                d->topicos[i].mensagens[j].duracao,
                                d->topicos[i].mensagens[j].corpo_msg);
                         break;
@@ -527,6 +529,61 @@ void mostra_topicos(DATA *d) {
     }
 }
 
+void guardarMensagens(DATA *d, const char *nomeFicheiro) {
+    FILE *ficheiro = fopen(nomeFicheiro, "w");
+    if (ficheiro == NULL) {
+        perror("Erro ao abrir o ficheiro para escrita");
+        return;
+    }
+
+    for (int i = 0; i < d->nTopicos; i++) {
+        for (int j = 0; j < d->topicos[i].nMsgs; j++) {
+            fprintf(ficheiro, "%s %d %d %s\n", d->topicos[i].nome_topico,d->topicos[i].mensagens[j].pid,d->topicos[i].mensagens[j].duracao,d->topicos[i].mensagens[j].corpo_msg);
+        }
+    }
+
+    fclose(ficheiro);
+    printf("Mensagens guardadas com sucesso em %s.\n", nomeFicheiro);
+}
+
+// Função para recuperar mensagens persistentes de um ficheiro
+//ESTA É TUDO CHATGPT MAS A LOGICA DEVE TAR BOA, SO DEVE SER NECESSARIO ALTERAR PARA AS NOSSAS STRUCTS
+void recuperarMensagens(DATA *data, const char *nomeFicheiro) {
+    FILE *ficheiro = fopen(nomeFicheiro, "r");
+    if (ficheiro == NULL) {
+        perror("Erro ao abrir o ficheiro para leitura");
+        return;
+    }
+
+    char linha[512];
+    while (fgets(linha, sizeof(linha), ficheiro) != NULL) {
+        char nome_topico[TAM];
+        MENSAGEM msg;
+        if (sscanf(linha, "%s %d %d %s", nome_topico, &msg.pid, &msg.duracao, msg.corpo_msg) == 4) {
+            // Encontrar ou criar o tópico correspondente
+            TOPICO *topico = NULL;
+            for (int i = 0; i < data->nTopicos; i++) {
+                if (strcmp(data->topicos[i].nome_topico, nome_topico) == 0) {
+                    topico = &data->topicos[i];
+                    break;
+                }
+            }
+
+            if (!topico && data->nTopicos < MAX_TOPICS) {
+                topico = &data->topicos[data->nTopicos++];
+                strcpy(topico->nome_topico, nome_topico);
+                topico->nMsgs = 0;
+            }
+
+            if (topico && topico->nMsgs < MAX_MSG_PER) {
+                topico->mensagens[topico->nMsgs++] = msg;
+            }
+        }
+    }
+
+    fclose(ficheiro);
+    printf("Mensagens recuperadas de %s.\n", nomeFicheiro);
+}
 
 int main(int argc, char *argv[]) {
     if (argc != 1) {
@@ -570,6 +627,7 @@ int main(int argc, char *argv[]) {
     pthread_create(&thread_reduz_duracao, NULL, reduz_duracao, &data);
     //...
 
+    recuperarMensagens(&data,FICHEIRO);
 
     //...
 
@@ -727,7 +785,7 @@ int main(int argc, char *argv[]) {
                 if (envia_info(data.users_pids[i], &pf)) {
                     data.nUsers--;
                 } else {
-                    printf(" NAO DEU!\n");
+                    printf("[ERRO]!\n");
                 }
             }
             pthread_mutex_unlock(data.ptrinco);
@@ -749,6 +807,8 @@ int main(int argc, char *argv[]) {
             if (tam < 0) {
                 printf("[MANAGER] Pedido de encerramento mal executado.\n");
             }
+
+            guardarMensagens(&data,FICHEIRO);
 
             pthread_join(thread_pedidos, NULL);
             pthread_join(thread_reduz_duracao, NULL);
