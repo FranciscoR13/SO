@@ -25,6 +25,9 @@
 #define FIFO_SERV "M_PIPE"      //MANAGER-PIPE
 #define FIFO_CLI "F_%d"             //FEED-PIPE(PID)
 
+// FICHEIRO
+#define FICHEIRO "MSG_FICH"
+
 typedef struct {
     int pid;
     char username[TAM_NOME];
@@ -45,7 +48,7 @@ typedef struct {
 typedef struct
 {
     char nome_topico[TAM];
-    bool bloqueado; 
+    int bloqueado; // 0- desbloqueado !0-bloqueado
 
     //char msgs_persistentes[MAX_MSG_PER][TAM_MSG];// 5 mensagens com 300 de comprimento
 
@@ -86,4 +89,3 @@ typedef struct {
     pthread_mutex_t *ptrinco;
 
 }DATA;
-
