@@ -22,8 +22,8 @@
 #define MAX_MSG_PER 5
 
 // FIFOS
-#define FIFO_SERV "M_PIPE"      //MANAGER-PIPE
-#define FIFO_CLI "F_%d"             //FEED-PIPE(PID)
+#define FIFO_SERV "M_PIPE"          // MANAGER-PIPE
+#define FIFO_CLI "F_%d"             // FEED-PIPE(PID)
 
 // FICHEIRO
 #define FICHEIRO "MSG_FICH"
@@ -50,8 +50,6 @@ typedef struct
     char nome_topico[TAM];
     int bloqueado; // 0- desbloqueado !0-bloqueado
 
-    //char msgs_persistentes[MAX_MSG_PER][TAM_MSG];// 5 mensagens com 300 de comprimento
-
     MENSAGEM mensagens[MAX_MSG_PER];
     int nMsgs;
     int upid;
@@ -61,7 +59,9 @@ typedef struct
 }TOPICO;
 
 typedef struct {
-    int tipo;   // TIPO DE ESTRUTURA
+    int tipo;       
+    
+    // TIPO DE ESTRUTURA
     union {
         LOGIN l;
         MENSAGEM m;
@@ -70,7 +70,6 @@ typedef struct {
     };
 }PEDIDO;
 
-// >>>>>>>>>>>>>>TENTAR DIMINUIR O TAMANHO DAS ESTRUTURAS <<<<<<<<<<<<<<<<<
 typedef struct {
 
     // LOGIN
