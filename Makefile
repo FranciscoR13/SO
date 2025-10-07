@@ -1,9 +1,6 @@
-
 # Como usar:
-# make: compilas tudo
-# make clean: removes tudo
-
-
+# make: compila tudo
+# make clean: remove tudo
 
 # Definir variaveis
 CC = gcc                 # Compilador
