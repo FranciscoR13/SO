@@ -22,8 +22,8 @@
 #define MAX_MSG_PER 5
 
 // FIFOS
-#define FIFO_SERV "M_PIPE"          // MANAGER-PIPE
-#define FIFO_CLI "F_%d"             // FEED-PIPE(PID)
+#define FIFO_SERV "M_PIPE"         
+#define FIFO_CLI "F_%d"            
 
 // FICHEIRO
 #define FICHEIRO "MSG_FICH"
