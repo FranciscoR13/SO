@@ -2,11 +2,11 @@ COMANDOS MANAGER
 
 1. users {FEITO}
 
-2. remove <username> {IMPLEMENTADO MAS NÃO RECEBE O ARGUMENTO AO MESMO TEMPO QUE O COMANDO}
+2. remove <username> {FEITO}
 
 3. topics {FEITO}
 
-4. show <topico> {IMPLEMENTADO MAS NÃO RECEBE O ARGUMENTO AO MESMO TEMPO QUE O COMANDO}   
+4. show <topico> {FEITO}   
 
 5. lock <topico> {NAO IMPLEMANTADO}
 
